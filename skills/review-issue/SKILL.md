@@ -1,0 +1,264 @@
+---
+name: Drupal.org Issue Review
+description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "check issue status", "analyze a merge request", or wants to examine a Drupal.org issue's code changes, discussion, and CI status.
+version: 1.0.0
+---
+
+# Drupal.org Issue Review Skill
+
+You are reviewing a Drupal.org issue to provide comprehensive feedback on code changes, discussion context, and CI status.
+
+## Workflow
+
+### 1. Get Issue Number
+
+First, determine the issue number:
+
+**If user provided issue number in args:**
+- Use the provided issue number
+
+**If no issue number provided:**
+- Get current git branch: `git rev-parse --abbrev-ref HEAD`
+- Extract issue number from branch name (e.g., "3571460-fix-bug" → 3571460)
+- Look for pattern: digits at start of branch name before first hyphen
+- If no issue number found, inform user and ask for issue number
+
+### 2. Fetch Issue Data
+
+Execute the `do.php info` command to get issue details:
+
+```bash
+php "/Users/ted.bowman/projects/drupal-scripts/do.php" info {{issue_number}} --format=md --comments --mrs
+```
+
+Parse the markdown output to extract:
+- **Issue metadata**: title, status, category, component, version
+- **Issue summary**: description and problem statement
+- **Discussion**: comments with authors, dates, and key points
+- **Related issues**: dependencies, duplicates, follow-ups
+- **Open questions**: unresolved discussion points
+- **Concerns raised**: issues mentioned in comments
+
+### 3. Fetch MR Data
+
+Execute the `do.php gitlab:mrinfo` command to get merge request details:
+
+```bash
+php "/Users/ted.bowman/projects/drupal-scripts/do.php" gitlab:mrinfo {{issue_number}}
+```
+
+Parse the JSON output to extract:
+- `web_url`: URL to the MR page
+- `diff_web_url`: URL to view the diff
+- `title`: MR title
+- `description`: MR description
+- `state`: opened/merged/closed
+- `source_branch`: branch with changes
+- `target_branch`: usually the main branch
+- `has_conflicts`: boolean for merge conflicts
+- `blocking_discussions_resolved`: boolean for unresolved discussions
+- `author`: MR author information
+
+**If no open MRs found:**
+- Inform user that there are no open merge requests
+- Provide issue URL for manual review: `https://drupal.org/i/{{issue_number}}`
+- Stop here
+
+### 4. Analyze Code Changes
+
+Fetch and analyze the merge request diff:
+
+**Fetch the diff:**
+- Use WebFetch on `{{mr_data.diff_web_url}}` to get the full diff
+
+**Analyze the changes:**
+- Provide a **high-level summary** focusing on architecture and approach
+- Identify the **nature of changes**: new feature, bug fix, refactoring, API change
+- Review **architectural patterns**: design decisions, code structure, API design
+- Assess **test coverage**: are tests added/updated appropriately?
+- Check **documentation**: inline comments, docblocks, README updates
+- Note **potential concerns**: security, performance, maintainability, BC breaks
+
+**Use reference materials:**
+- Consult `${CLAUDE_PLUGIN_ROOT}/skills/review-issue/references/review-guidelines.md` for Drupal-specific review criteria
+- Check `${CLAUDE_PLUGIN_ROOT}/skills/review-issue/references/common-issues.md` for common pitfalls
+
+**Keep analysis concise:**
+- Focus on high-level architectural concerns
+- Don't provide line-by-line commentary unless critical
+- User can drill deeper into specific files if needed
+
+### 5. Check GitLab CI Status
+
+Since pipeline data is not available via the GitLab API for git.drupalcode.org, use Playwright to check CI status:
+
+**Navigate to MR page:**
+```
+mcp__plugin_playwright_playwright__browser_navigate
+url: {{mr_data.web_url}}
+```
+
+**Capture page snapshot:**
+```
+mcp__plugin_playwright_playwright__browser_snapshot
+```
+
+**Parse snapshot for CI indicators:**
+- Look for pipeline status: "Pipeline #XXX passed", "failed", "running"
+- Check for CI badges or pipeline indicators
+- Note any failed jobs or error messages
+- Identify if tests are still running
+
+**Handle failures gracefully:**
+- If Playwright fails or page structure is unclear, fall back to manual check
+- Provide URL: `{{mr_data.web_url}}/-/pipelines`
+- Note: "Unable to automatically check CI status, please verify manually"
+
+### 6. Generate Review Summary
+
+Display a comprehensive review summary in the terminal:
+
+```markdown
+## Issue Review: #{{issue_number}}
+
+### Issue Details
+- **Title**: {{title}}
+- **Status**: {{status}} | **Category**: {{category}}
+- **Component**: {{component}}
+- **URL**: https://drupal.org/i/{{issue_number}}
+
+### Merge Request
+- **URL**: {{mr_url}}
+- **State**: {{state}}
+- **Source → Target**: {{source_branch}} → {{target_branch}}
+- **Has Conflicts**: {{has_conflicts}}
+- **Blocking Discussions Resolved**: {{blocking_discussions_resolved}}
+
+### Code Changes Summary
+{{high-level analysis of diff}}
+
+**Nature of changes**: {{feature/bugfix/refactoring/etc}}
+**Architecture**: {{design patterns, approach taken}}
+**Test coverage**: {{assessment of tests}}
+**Documentation**: {{assessment of docs}}
+
+### Discussion Summary
+{{key points from comments}}
+
+**Open questions**:
+- {{list of unresolved questions}}
+
+**Concerns raised**:
+- {{list of concerns from discussion}}
+
+### GitLab CI Status
+{{pipeline status from Playwright check}}
+
+- Pipeline: {{status}}
+- Failed jobs: {{if any}}
+- {{or "Check manually at {{mr_url}}/-/pipelines"}}
+
+### Review Findings
+
+**Overall Assessment**: {{summary judgment}}
+
+**Strengths**:
+- {{positive aspects}}
+
+**Concerns**:
+- {{issues to address}}
+
+**Suggestions**:
+- {{recommendations for improvement}}
+```
+
+### 7. Offer to Post Response
+
+Use AskUserQuestion to ask if user wants to post their review:
+
+```
+questions:
+  - question: "Would you like to post your review?"
+    header: "Post Review"
+    options:
+      - label: "Post to Drupal.org issue"
+        description: "Add review comment to the Drupal.org issue queue"
+      - label: "Post to GitLab MR"
+        description: "Add review comment to the GitLab merge request"
+      - label: "Post to both"
+        description: "Add review comments to both Drupal.org and GitLab"
+      - label: "No, just show summary"
+        description: "Don't post, just display the review summary"
+```
+
+If user selects "No, just show summary", stop here.
+
+### 8. Post Response (if requested)
+
+#### Post to Drupal.org
+
+Use Playwright to navigate and post comment:
+
+1. **Navigate to issue**:
+   ```
+   mcp__plugin_playwright_playwright__browser_navigate
+   url: https://drupal.org/i/{{issue_number}}
+   ```
+
+2. **Snapshot to find comment form**:
+   ```
+   mcp__plugin_playwright_playwright__browser_snapshot
+   ```
+
+3. **Fill and submit comment**:
+   - Use `browser_click` to focus comment textarea
+   - Use `browser_type` to enter review text
+   - Use `browser_click` to submit comment
+   - Handle login if needed (prompt user to login first)
+
+#### Post to GitLab
+
+Use Playwright to navigate and post MR comment:
+
+1. **Navigate to MR**:
+   ```
+   mcp__plugin_playwright_playwright__browser_navigate
+   url: {{mr_data.web_url}}
+   ```
+
+2. **Snapshot to find comment form**:
+   ```
+   mcp__plugin_playwright_playwright__browser_snapshot
+   ```
+
+3. **Fill and submit comment**:
+   - Use `browser_click` to focus comment textarea
+   - Use `browser_type` to enter review text
+   - Use `browser_click` to submit comment
+   - Handle authentication if needed
+
+#### Confirmation
+
+After posting, confirm success:
+- "Review posted to Drupal.org: https://drupal.org/i/{{issue_number}}"
+- "Review posted to GitLab: {{mr_data.web_url}}"
+- Note any errors encountered
+
+## Error Handling
+
+- **Branch has no issue number**: Ask user to provide issue number
+- **Issue not found**: Verify issue number and check drupal.org connectivity
+- **No open MRs**: Inform user, provide issue URL, stop workflow
+- **do.php not found**: Check path `/Users/ted.bowman/projects/drupal-scripts/do.php`
+- **Playwright fails**: Fall back to manual URLs, continue with review
+- **Cannot post comment**: Provide instructions for manual posting
+
+## Tips
+
+- Keep code analysis high-level and architectural
+- Reference Drupal best practices from bundled guidelines
+- Be constructive in feedback - suggest improvements
+- Note both strengths and concerns
+- Consider backwards compatibility implications
+- Check for Drupal coding standards adherence
+- Verify API changes are documented
