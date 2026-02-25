@@ -64,12 +64,36 @@ Parse the JSON output to extract:
 - Provide issue URL for manual review: `https://drupal.org/i/{{issue_number}}`
 - Stop here
 
-### 4. Analyze Code Changes
+**Save the target branch** from MR data for later use (e.g., `1.x`, `2.x`, `11.x`).
 
-Fetch and analyze the merge request diff:
+### 4. Checkout the MR Branch Locally
 
-**Fetch the diff:**
-- Use WebFetch on `{{mr_data.diff_web_url}}` to get the full diff
+Checkout the merge request branch for local analysis:
+
+```bash
+php "/Users/ted.bowman/projects/drupal-scripts/do.php" mr-checkout {{issue_number}}
+```
+
+This command will:
+- Update the local target branch from origin (or pull if currently on it)
+- Add the fork as a remote if needed
+- Fetch and checkout the MR branch
+
+### 5. Analyze Code Changes
+
+Analyze the merge request using local git and files:
+
+**Get the diff against target branch:**
+```bash
+git diff origin/{{target_branch}}...HEAD
+```
+
+**For a summary of changed files:**
+```bash
+git diff origin/{{target_branch}}...HEAD --stat
+```
+
+**Read specific changed files** using the Read tool for full context.
 
 **Analyze the changes:**
 - Provide a **high-level summary** focusing on architecture and approach
@@ -78,6 +102,15 @@ Fetch and analyze the merge request diff:
 - Assess **test coverage**: are tests added/updated appropriately?
 - Check **documentation**: inline comments, docblocks, README updates
 - Note **potential concerns**: security, performance, maintainability, BC breaks
+
+**Run local code quality checks (optional but recommended):**
+```bash
+# PHP CodeSniffer
+../../../vendor/bin/phpcs -s . --standard=phpcs.xml --basepath=.
+
+# PHPStan
+../../../vendor/bin/phpstan analyze --memory-limit=256M --configuration=phpstan.neon .
+```
 
 **Use reference materials:**
 - Consult `${CLAUDE_PLUGIN_ROOT}/skills/review-issue/references/review-guidelines.md` for Drupal-specific review criteria
@@ -88,33 +121,25 @@ Fetch and analyze the merge request diff:
 - Don't provide line-by-line commentary unless critical
 - User can drill deeper into specific files if needed
 
-### 5. Check GitLab CI Status
+### 6. Check GitLab CI Status
 
-Since pipeline data is not available via the GitLab API for git.drupalcode.org, use Playwright to check CI status:
+Since pipeline data is not available via the GitLab API for git.drupalcode.org, use browser automation to check CI status:
 
-**Navigate to MR page:**
-```
-mcp__plugin_playwright_playwright__browser_navigate
-url: {{mr_data.web_url}}
-```
-
-**Capture page snapshot:**
-```
-mcp__plugin_playwright_playwright__browser_snapshot
-```
-
-**Parse snapshot for CI indicators:**
-- Look for pipeline status: "Pipeline #XXX passed", "failed", "running"
-- Check for CI badges or pipeline indicators
-- Note any failed jobs or error messages
-- Identify if tests are still running
+**Steps:**
+1. Open a browser and navigate to the MR page: `{{mr_data.web_url}}`
+2. Get a snapshot/state of the page
+3. Parse the page for CI indicators:
+   - Look for pipeline status: "Pipeline #XXX passed", "failed", "running"
+   - Check for CI badges or pipeline indicators
+   - Note any failed jobs or error messages
+   - Identify if tests are still running
 
 **Handle failures gracefully:**
-- If Playwright fails or page structure is unclear, fall back to manual check
+- If browser automation fails or page structure is unclear, fall back to manual check
 - Provide URL: `{{mr_data.web_url}}/-/pipelines`
 - Note: "Unable to automatically check CI status, please verify manually"
 
-### 6. Generate Review Summary
+### 7. Generate Review Summary
 
 Display a comprehensive review summary in the terminal:
 
@@ -172,7 +197,7 @@ Display a comprehensive review summary in the terminal:
 - {{recommendations for improvement}}
 ```
 
-### 7. Offer to Post Response
+### 8. Offer to Post Response
 
 Use AskUserQuestion to ask if user wants to post their review:
 
@@ -193,48 +218,30 @@ questions:
 
 If user selects "No, just show summary", stop here.
 
-### 8. Post Response (if requested)
+### 9. Post Response (if requested)
 
 #### Post to Drupal.org
 
-Use Playwright to navigate and post comment:
+Use browser automation to navigate and post comment:
 
-1. **Navigate to issue**:
-   ```
-   mcp__plugin_playwright_playwright__browser_navigate
-   url: https://drupal.org/i/{{issue_number}}
-   ```
-
-2. **Snapshot to find comment form**:
-   ```
-   mcp__plugin_playwright_playwright__browser_snapshot
-   ```
-
+1. **Navigate to issue**: Open `https://drupal.org/i/{{issue_number}}`
+2. **Get page snapshot** to find the comment form
 3. **Fill and submit comment**:
-   - Use `browser_click` to focus comment textarea
-   - Use `browser_type` to enter review text
-   - Use `browser_click` to submit comment
+   - Click to focus the comment textarea
+   - Type the review text
+   - Click to submit the comment
    - Handle login if needed (prompt user to login first)
 
 #### Post to GitLab
 
-Use Playwright to navigate and post MR comment:
+Use browser automation to navigate and post MR comment:
 
-1. **Navigate to MR**:
-   ```
-   mcp__plugin_playwright_playwright__browser_navigate
-   url: {{mr_data.web_url}}
-   ```
-
-2. **Snapshot to find comment form**:
-   ```
-   mcp__plugin_playwright_playwright__browser_snapshot
-   ```
-
+1. **Navigate to MR**: Open `{{mr_data.web_url}}`
+2. **Get page snapshot** to find the comment form
 3. **Fill and submit comment**:
-   - Use `browser_click` to focus comment textarea
-   - Use `browser_type` to enter review text
-   - Use `browser_click` to submit comment
+   - Click to focus the comment textarea
+   - Type the review text
+   - Click to submit the comment
    - Handle authentication if needed
 
 #### Confirmation
@@ -250,7 +257,7 @@ After posting, confirm success:
 - **Issue not found**: Verify issue number and check drupal.org connectivity
 - **No open MRs**: Inform user, provide issue URL, stop workflow
 - **do.php not found**: Check path `/Users/ted.bowman/projects/drupal-scripts/do.php`
-- **Playwright fails**: Fall back to manual URLs, continue with review
+- **Browser automation fails**: Fall back to manual URLs, continue with review
 - **Cannot post comment**: Provide instructions for manual posting
 
 ## Tips
