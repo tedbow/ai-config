@@ -31,15 +31,13 @@ You are triaging Ted's daily Jira tickets from the SCP project and associated Dr
 
 ### Step 1: Fetch Jira Tickets
 
-Query for all tickets in the active sprint assigned to the current user:
+**Use the fetch-scp-tickets skill** to get tickets from board 5081:
 
 ```
-mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
-jql: project = SCP AND sprint in openSprints() AND assignee = currentUser()
-fields: ["summary", "description", "status", "issuetype", "priority", "created", "updated"]
-maxResults: 50
+Skill: fetch-scp-tickets
 ```
+
+This skill handles the correct JQL query for the SCP board's active sprint and formats the output.
 
 ### Step 2: Extract Drupal.org Issue Links
 
