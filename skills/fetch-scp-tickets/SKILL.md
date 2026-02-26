@@ -1,22 +1,12 @@
 ---
 name: fetch-scp-tickets
-description: Fetch Jira tickets from a configured board for the current sprint. Use when triaging daily work, checking sprint tickets, or getting an overview of assigned issues. Requires fetch-scp-tickets.local.md configuration.
+description: Fetch Jira tickets from a configured board for the current sprint. Use when triaging daily work, checking sprint tickets, or getting an overview of assigned issues.
 user_invocable: true
 ---
 
 # Fetch SCP Tickets
 
 Fetch tickets from the configured Jira board for the current user's active sprint.
-
-## Configuration
-
-**Read configuration from `fetch-scp-tickets.local.md` in this skill's directory.**
-
-The `.local.md` file should contain YAML frontmatter with:
-- `cloud_id`: Your Atlassian Cloud ID
-- `project`: Your Jira project key
-- `board_id`: Your Jira board ID
-- `board_url`: Direct URL to your Jira board (for error handling fallback)
 
 ## Step 1: Query Jira
 

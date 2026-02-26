@@ -1,8 +1,0 @@
----
-# Atlassian/Jira Configuration
-# Copy this file to fetch-scp-tickets.local.md and fill in your values
-cloud_id: YOUR_CLOUD_ID_HERE
-project: YOUR_PROJECT_KEY
-board_id: YOUR_BOARD_ID
-board_url: https://YOUR_ORG.atlassian.net/jira/software/c/projects/YOUR_PROJECT/boards/YOUR_BOARD_ID
----

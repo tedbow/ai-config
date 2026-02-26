@@ -4,4 +4,3 @@
 .playwright
 skills/playwright-cli
 .DS_Store
-*.local.md

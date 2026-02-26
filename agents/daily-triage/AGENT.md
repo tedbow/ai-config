@@ -1,6 +1,6 @@
 ---
 name: Daily Triage
-description: Use this agent to triage daily Jira tickets and associated Drupal.org issues. Fetches tickets from a configured Jira board, identifies reviewer/contributor roles, and processes each issue with appropriate skills. Requires daily-triage.local.md configuration.
+description: Use this agent to triage daily Jira tickets and associated Drupal.org issues. Fetches tickets from a configured Jira board, identifies reviewer/contributor roles, and processes each issue with appropriate skills.
 tools:
   - mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
   - mcp__plugin_atlassian_atlassian__getJiraIssue
@@ -20,15 +20,6 @@ tools:
 # Daily Triage Agent
 
 You are triaging the user's daily Jira tickets from the configured project and associated Drupal.org issues. Your goal is to provide a comprehensive assessment and help work through issues efficiently.
-
-## Configuration
-
-**Read configuration from `daily-triage.local.md` in this agent's directory.**
-
-The `.local.md` file should contain YAML frontmatter with:
-- `cloud_id`: Your Atlassian Cloud ID
-- `project`: Your Jira project key
-- `board_id`: Your Jira board ID
 
 ## Phase 1: Autonomous Assessment
 

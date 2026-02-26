@@ -6,22 +6,30 @@ This is very much a scratch my own itch repository. Use at own risk.
 
 ## Setup
 
-### 1. Configure Local Settings
-
-Copy `.local.md.example` files to `.local.md` and fill in your values:
+### 1. Symlink into ~/.claude
 
 ```bash
-cp skills/fetch-scp-tickets/fetch-scp-tickets.local.md.example skills/fetch-scp-tickets/fetch-scp-tickets.local.md
-cp agents/daily-triage/daily-triage.local.md.example agents/daily-triage/daily-triage.local.md
+ln -s /path/to/ai-config/skills ~/.claude/skills
+ln -s /path/to/ai-config/agents ~/.claude/agents
 ```
 
-Edit each `.local.md` file with your Atlassian/Jira configuration:
-- `cloud_id`: Your Atlassian Cloud ID (find via `mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources`)
-- `project`: Your Jira project key (e.g., `SCP`)
-- `board_id`: Your Jira board ID (from board URL)
-- `board_url`: Full URL to your Jira board (for fallback links)
+### 2. Configure Atlassian/Jira Settings
 
-### 2. Install do.php
+Some agents and skills use `{{cloud_id}}`, `{{project}}`, `{{board_id}}`, and `{{board_url}}` placeholders.
 
-Ensure `do.php` is in your PATH.
+Add your values to `~/.claude/CLAUDE.md`:
+
+```markdown
+## Atlassian Config
+- cloud_id: YOUR_CLOUD_ID
+- project: YOUR_PROJECT_KEY
+- board_id: YOUR_BOARD_ID
+- board_url: https://YOUR_ORG.atlassian.net/jira/software/c/projects/YOUR_PROJECT/boards/YOUR_BOARD_ID
+```
+
+To find your Cloud ID, use `mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources`.
+
+### 3. Install do.php
+
+Some skills require `do.php` in your PATH.
 See https://github.com/tedbow/drupal-scripts
