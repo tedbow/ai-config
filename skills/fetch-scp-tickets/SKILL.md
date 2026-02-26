@@ -1,27 +1,31 @@
 ---
 name: fetch-scp-tickets
-description: Fetch Jira tickets from the SCP board (5081) for the current sprint. Use when triaging daily work, checking sprint tickets, or getting an overview of assigned SCP issues.
+description: Fetch Jira tickets from a configured board for the current sprint. Use when triaging daily work, checking sprint tickets, or getting an overview of assigned issues. Requires fetch-scp-tickets.local.md configuration.
 user_invocable: true
 ---
 
 # Fetch SCP Tickets
 
-Fetch tickets from the SCP board (DAT CMS Growth & Innovation) for the current user's active sprint.
+Fetch tickets from the configured Jira board for the current user's active sprint.
 
-## Constants
+## Configuration
 
-- **Cloud ID**: `e064d7a1-07ac-4eb9-ace5-67fc64ac5826`
-- **Project**: SCP
-- **Board**: 5081
+**Read configuration from `fetch-scp-tickets.local.md` in this skill's directory.**
+
+The `.local.md` file should contain YAML frontmatter with:
+- `cloud_id`: Your Atlassian Cloud ID
+- `project`: Your Jira project key
+- `board_id`: Your Jira board ID
+- `board_url`: Direct URL to your Jira board (for error handling fallback)
 
 ## Step 1: Query Jira
 
-Use the following JQL to get tickets from the SCP board's active sprint:
+Use the following JQL to get tickets from the board's active sprint:
 
 ```
 mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
-jql: project = SCP AND sprint in openSprints() AND assignee = currentUser() ORDER BY priority DESC, updated DESC
+cloudId: {{cloud_id}}
+jql: project = {{project}} AND sprint in openSprints() AND assignee = currentUser() ORDER BY priority DESC, updated DESC
 fields: ["summary", "description", "status", "issuetype", "priority", "created", "updated", "labels"]
 maxResults: 50
 ```
@@ -38,7 +42,7 @@ For each ticket, check for Drupal.org issue references in:
 2. **Remote Links**: Fetch web links for each ticket:
    ```
    mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
-   cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+   cloudId: {{cloud_id}}
    issueIdOrKey: {{JIRA_KEY}}
    ```
 
@@ -92,10 +96,10 @@ Group tickets by these status categories:
 If the user asks for "all sprint tickets" (not just assigned), use:
 
 ```
-jql: project = SCP AND sprint in openSprints() ORDER BY assignee, priority DESC
+jql: project = {{project}} AND sprint in openSprints() ORDER BY assignee, priority DESC
 ```
 
 ## Error Handling
 
-- If no tickets found: Report "No SCP tickets in current sprint"
-- If API error: Provide direct link to board: https://acquia.atlassian.net/jira/software/c/projects/SCP/boards/5081
+- If no tickets found: Report "No tickets in current sprint"
+- If API error: Provide direct link to board using `{{board_url}}` from configuration

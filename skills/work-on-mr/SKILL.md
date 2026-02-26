@@ -37,7 +37,7 @@ After receiving the issue information, check if there are any open merge request
 Use the following command to checkout the merge request branch locally:
 
 ```bash
-php "/Users/ted.bowman/projects/drupal-scripts/do.php" mr-checkout {{issue_number}}
+do.php mr-checkout {{issue_number}}
 ```
 
 **Wait for the checkout to complete successfully** before proceeding.
@@ -118,7 +118,6 @@ Once you have the answers you need:
 - **Issue not found**: Verify issue number is correct
 - **No open MRs**: Inform user and provide issue URL, then stop
 - **Checkout fails**: Report error, check repository and permissions
-- **do.php not found**: Check path `/Users/ted.bowman/projects/drupal-scripts/do.php`
 - **Code quality checks fail**: Fix issues before completing the work
 
 ## Tips

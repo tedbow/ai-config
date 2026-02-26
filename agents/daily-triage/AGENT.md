@@ -1,6 +1,6 @@
 ---
 name: Daily Triage
-description: Use this agent to triage daily Jira tickets and associated Drupal.org issues. Fetches tickets from SCP board, identifies reviewer/contributor roles, and processes each issue with appropriate skills.
+description: Use this agent to triage daily Jira tickets and associated Drupal.org issues. Fetches tickets from a configured Jira board, identifies reviewer/contributor roles, and processes each issue with appropriate skills. Requires daily-triage.local.md configuration.
 tools:
   - mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
   - mcp__plugin_atlassian_atlassian__getJiraIssue
@@ -19,19 +19,22 @@ tools:
 
 # Daily Triage Agent
 
-You are triaging Ted's daily Jira tickets from the SCP project and associated Drupal.org issues. Your goal is to provide a comprehensive assessment and help work through issues efficiently.
+You are triaging the user's daily Jira tickets from the configured project and associated Drupal.org issues. Your goal is to provide a comprehensive assessment and help work through issues efficiently.
 
-## Constants
+## Configuration
 
-- **Cloud ID**: `e064d7a1-07ac-4eb9-ace5-67fc64ac5826`
-- **Project**: SCP (DAT CMS Growth & Innovation)
-- **Board**: 5081
+**Read configuration from `daily-triage.local.md` in this agent's directory.**
+
+The `.local.md` file should contain YAML frontmatter with:
+- `cloud_id`: Your Atlassian Cloud ID
+- `project`: Your Jira project key
+- `board_id`: Your Jira board ID
 
 ## Phase 1: Autonomous Assessment
 
 ### Step 1: Fetch Jira Tickets
 
-**Use the fetch-scp-tickets skill** to get tickets from board 5081:
+**Use the fetch-scp-tickets skill** to get tickets from the configured board:
 
 ```
 Skill: fetch-scp-tickets
@@ -51,7 +54,7 @@ For each Jira ticket, extract Drupal.org issue links from **two locations**:
 **B. Remote Links (Web Links):**
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: {{cloud_id}}
 issueIdOrKey: {{JIRA_KEY}}
 ```
 
@@ -60,7 +63,7 @@ issueIdOrKey: {{JIRA_KEY}}
 For each Drupal.org issue found, fetch details using the do.php command:
 
 ```bash
-php "/Users/ted.bowman/projects/drupal-scripts/do.php" info {{issue_number}} --format=md --comments --mrs
+do.php info {{issue_number}} --format=md --comments --mrs
 ```
 
 Extract:
@@ -237,7 +240,7 @@ Use Playwright to navigate and post comment as defined in review-issue skill.
 **Add Comment:**
 ```
 mcp__plugin_atlassian_atlassian__addCommentToJiraIssue
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: {{cloud_id}}
 issueIdOrKey: {{JIRA_KEY}}
 commentBody: {{comment_text}}
 ```
@@ -246,14 +249,14 @@ commentBody: {{comment_text}}
 First, get available transitions:
 ```
 mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: {{cloud_id}}
 issueIdOrKey: {{JIRA_KEY}}
 ```
 
 Then transition:
 ```
 mcp__plugin_atlassian_atlassian__transitionJiraIssue
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: {{cloud_id}}
 issueIdOrKey: {{JIRA_KEY}}
 transition: { "id": "{{transition_id}}" }
 ```
@@ -265,7 +268,6 @@ transition: { "id": "{{transition_id}}" }
 - **Jira API errors**: Report error, provide manual URL to Jira board
 - **Drupal.org fetch fails**: Note the failure, continue with other tickets
 - **No open MRs**: Flag ticket for manual review, may need MR created
-- **do.php not found**: Check path `/Users/ted.bowman/projects/drupal-scripts/do.php`
 - **Branch conflicts**: Stash changes, report conflict, ask user for resolution
 
 ---

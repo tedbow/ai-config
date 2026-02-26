@@ -27,7 +27,7 @@ You are fetching and summarizing comprehensive information about a Drupal.org is
 Execute the `do.php info` command to get issue details:
 
 ```bash
-php "/Users/ted.bowman/projects/drupal-scripts/do.php" info {{issue_number}} --format=md --comments --mrs
+do.php info {{issue_number}} --format=md --comments --mrs
 ```
 
 **If there are any errors fetching the issue details:**
@@ -43,7 +43,7 @@ Check if the user requested related issues information:
 1. After summarizing the main issue, examine the `field_issue_related_links` field in the response
 2. For each related issue number found, run the command again:
    ```bash
-   php "/Users/ted.bowman/projects/drupal-scripts/do.php" info {{related_issue_number}} --format=md --comments --mrs
+   do.php info {{related_issue_number}} --format=md --comments --mrs
    ```
 3. Append a "Related Issues Details" section at the end with the summaries of each related issue
 
@@ -141,7 +141,6 @@ Summarize the issue using the format below. When referencing other issues mentio
 ## Error Handling
 
 - **Issue not found**: Verify issue number and check drupal.org connectivity
-- **do.php not found**: Check path `/Users/ted.bowman/projects/drupal-scripts/do.php`
 - **Fetch errors**: Report the error and stop processing
 - **Related issue fetch fails**: Note the failure but continue with main issue summary
 - **Branch has no issue number**: Ask user to provide issue number

@@ -28,7 +28,7 @@ First, determine the issue number:
 Execute the `do.php info` command to get issue details:
 
 ```bash
-php "/Users/ted.bowman/projects/drupal-scripts/do.php" info {{issue_number}} --format=md --comments --mrs
+do.php info {{issue_number}} --format=md --comments --mrs
 ```
 
 Parse the markdown output to extract:
@@ -44,7 +44,7 @@ Parse the markdown output to extract:
 Execute the `do.php gitlab:mrinfo` command to get merge request details:
 
 ```bash
-php "/Users/ted.bowman/projects/drupal-scripts/do.php" gitlab:mrinfo {{issue_number}}
+do.php gitlab:mrinfo {{issue_number}}
 ```
 
 Parse the JSON output to extract:
@@ -71,7 +71,7 @@ Parse the JSON output to extract:
 Checkout the merge request branch for local analysis:
 
 ```bash
-php "/Users/ted.bowman/projects/drupal-scripts/do.php" mr-checkout {{issue_number}}
+do.php mr-checkout {{issue_number}}
 ```
 
 This command will:
@@ -256,7 +256,6 @@ After posting, confirm success:
 - **Branch has no issue number**: Ask user to provide issue number
 - **Issue not found**: Verify issue number and check drupal.org connectivity
 - **No open MRs**: Inform user, provide issue URL, stop workflow
-- **do.php not found**: Check path `/Users/ted.bowman/projects/drupal-scripts/do.php`
 - **Browser automation fails**: Fall back to manual URLs, continue with review
 - **Cannot post comment**: Provide instructions for manual posting
 
