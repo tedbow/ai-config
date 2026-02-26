@@ -2,6 +2,8 @@
 
 Claude Code configuration: agents, skills, and hooks.
 
+This is very much a scratch my own itch repository. Use at own risk.
+
 ## Setup
 
 ### 1. Configure Local Settings
