@@ -15,26 +15,42 @@ Use the following JQL to get tickets from the board's active sprint:
 ```
 mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
 cloudId: {{cloud_id}}
-jql: project = {{project}} AND sprint in openSprints() AND assignee = currentUser() ORDER BY priority DESC, updated DESC
-fields: ["summary", "description", "status", "issuetype", "priority", "created", "updated", "labels"]
-maxResults: 50
+jql: project = {{project}} AND sprint in openSprints() ORDER BY priority DESC, updated DESC
+fields: ["summary", "description", "status", "issuetype", "priority", "created", "updated", "labels", "assignee"]
+maxResults: 25
 ```
 
-## Step 2: Extract Drupal.org Links
+**Note**: Removed `assignee = currentUser()` to get all sprint tickets - filter by assignee when displaying.
 
-For each ticket, check for Drupal.org issue references in:
+## Step 2: Extract Drupal.org Links (Two-Phase Approach)
 
-1. **Summary/Description**: Look for patterns like:
-   - `#NNNNNNN` (issue number)
-   - `https://www.drupal.org/project/*/issues/NNNNNNN`
-   - `https://drupal.org/i/NNNNNNN`
+### Phase A: Extract from descriptions (no extra API calls)
 
-2. **Remote Links**: Fetch web links for each ticket:
-   ```
-   mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
-   cloudId: {{cloud_id}}
-   issueIdOrKey: {{JIRA_KEY}}
-   ```
+For each ticket, extract Drupal.org issue references from the **description field**:
+
+1. **URL patterns to match**:
+   - `https://www.drupal.org/project/*/issues/NNNNNNN` → extract issue number
+   - `https://drupal.org/i/NNNNNNN` → extract issue number
+   - Jira smartlinks containing drupal.org URLs
+
+2. **Summary patterns**:
+   - `#NNNNNNN:` at start of summary (common pattern)
+
+### Phase B: Fetch remote links for tickets missing a link
+
+For tickets where **no Drupal.org link was found** in Phase A:
+
+```
+mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
+cloudId: {{cloud_id}}
+issueIdOrKey: {{JIRA_KEY}}
+```
+
+**Guidelines for Phase B**:
+- Only call for tickets that actually need it (no link found)
+- Prioritize tickets assigned to the current user
+- If you hit rate limits, stop and proceed with what you have
+- Maximum 5-10 remote link calls per triage session
 
 ## Step 3: Format Output
 
@@ -93,3 +109,26 @@ jql: project = {{project}} AND sprint in openSprints() ORDER BY assignee, priori
 
 - If no tickets found: Report "No tickets in current sprint"
 - If API error: Provide direct link to board using `{{board_url}}` from configuration
+
+## Rate Limit Handling
+
+If you receive a rate limit error (429 or similar):
+
+1. **Do NOT retry immediately** - this will make it worse
+2. **Present what you have** - show any tickets already fetched
+3. **Offer alternatives**:
+   - Provide the board URL for manual access
+   - Ask user if they want to provide specific ticket keys
+   - Suggest trying again in 5-10 minutes
+
+**Example response when rate limited:**
+```markdown
+The Jira API is rate limited. Here's what I found before the limit:
+
+[any tickets already fetched]
+
+**Options:**
+1. View your board directly: {{board_url}}
+2. Provide specific ticket keys (e.g., SCP-123, SCP-456) for me to look up
+3. Try again in a few minutes
+```

@@ -25,33 +25,50 @@ You are triaging the user's daily Jira tickets from the configured project and a
 
 ### Step 1: Fetch Jira Tickets
 
-**Use the fetch-scp-tickets skill** to get tickets from the configured board:
+Fetch tickets directly using JQL (do NOT use the fetch-scp-tickets skill - call the API directly):
 
 ```
-Skill: fetch-scp-tickets
+mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
+cloudId: {{cloud_id}}
+jql: project = {{project}} AND sprint in openSprints() ORDER BY priority DESC
+fields: ["summary", "description", "status", "issuetype", "priority", "created", "assignee"]
+maxResults: 25
 ```
 
-This skill handles the correct JQL query for the SCP board's active sprint and formats the output.
+**IMPORTANT**: Make only ONE API call to get all tickets. Do not make additional calls per ticket.
 
-### Step 2: Extract Drupal.org Issue Links
+### Step 2: Extract Drupal.org Issue Links (Two-Phase Approach)
 
-For each Jira ticket, extract Drupal.org issue links from **two locations**:
+**Phase A: Extract from descriptions first (no API calls)**
 
-**A. Description Field:**
-- Search for URLs matching pattern: `https://www.drupal.org/project/[^/]+/issues/(\d+)`
-- Also match: `https://drupal.org/i/(\d+)`
-- Also look for Jira smartlinks that reference Drupal.org
+Parse the description field already returned for:
+- `https://www.drupal.org/project/[^/]+/issues/(\d+)`
+- `https://drupal.org/i/(\d+)`
+- Jira smartlinks containing drupal.org
+- `#NNNNNNN:` pattern in summary
 
-**B. Remote Links (Web Links):**
+**Phase B: Fetch remote links ONLY for tickets missing a link**
+
+For tickets where no Drupal.org link was found in the description AND are assigned to the user:
+
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
 cloudId: {{cloud_id}}
 issueIdOrKey: {{JIRA_KEY}}
 ```
 
-### Step 3: Fetch Drupal.org Issue Information
+**IMPORTANT**:
+- Only fetch remote links for tickets that need them (missing from description)
+- Prioritize user's assigned tickets
+- If you hit rate limits during this phase, stop and proceed with what you have
 
-For each Drupal.org issue found, fetch details using the do.php command:
+### Step 3: Fetch Drupal.org Issue Information (Selective)
+
+**Do NOT fetch all Drupal.org issues upfront.** Only fetch details for:
+1. Tickets assigned to the user (priority)
+2. Maximum of 5 tickets in the first pass
+
+For selected tickets, use the do.php command:
 
 ```bash
 do.php info {{issue_number}} --format=md --comments --mrs
@@ -62,6 +79,8 @@ Extract:
 - Open merge requests and their states
 - Recent activity
 - Unresolved questions
+
+**Fetch additional ticket details on-demand** when the user selects specific issues to work on.
 
 ### Step 4: Determine Role
 
@@ -256,7 +275,12 @@ transition: { "id": "{{transition_id}}" }
 
 ## Error Handling
 
-- **Jira API errors**: Report error, provide manual URL to Jira board
+- **Jira API rate limit (429)**:
+  - Do NOT retry immediately
+  - Present any data already retrieved
+  - Provide board URL: `{{board_url}}`
+  - Offer to accept manual ticket keys from user
+- **Jira API errors (other)**: Report error, provide manual URL to Jira board
 - **Drupal.org fetch fails**: Note the failure, continue with other tickets
 - **No open MRs**: Flag ticket for manual review, may need MR created
 - **Branch conflicts**: Stash changes, report conflict, ask user for resolution
