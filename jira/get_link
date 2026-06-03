@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Configuration (Assumes you have these from your jira-cli setup)
+JIRA_DOMAIN="acquia.atlassian.net"
+# Base64 encode your email:api_token for the curl call
+AUTH_HEADER=$(echo -n "ted.bowman@acquia.com:$JIRA_API_TOKEN" | base64)
+
+get_web_links() {
+    ISSUE_KEY=$1
+
+    # Hit the specific Remote Link endpoint
+    RESPONSE=$(curl -s -H "Authorization: Basic $AUTH_HEADER" \
+         -H "Accept: application/json" \
+         "https://$JIRA_DOMAIN/rest/api/3/issue/$ISSUE_KEY/remotelink")
+
+    # Check if there's an error
+    if echo "$RESPONSE" | jq -e '.errorMessages // empty' > /dev/null 2>&1; then
+        ERROR_MSG=$(echo "$RESPONSE" | jq -r '.errorMessages[]?' 2>/dev/null)
+        if [ -n "$ERROR_MSG" ]; then
+            echo "Error: $ERROR_MSG" >&2
+            return 1
+        fi
+    fi
+
+    # Extract URLs - handle both object.url and just url fields
+    echo "$RESPONSE" | jq -r '.[] | if .object then .object.url else .url end // empty'
+}
+
+# Example Usage:
+get_web_links "$1"
