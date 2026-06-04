@@ -1,31 +1,55 @@
 ---
-name: Drupal.org Issue Review
-description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "check issue status", "analyze a merge request", or wants to examine a Drupal.org issue's code changes, discussion, and CI status.
-version: 1.0.0
+name: Issue Review
+description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "review a gitlab issue", "check issue status", "analyze a merge request", or wants to examine a Drupal.org or GitLab issue's code changes, discussion, and CI status.
+version: 2.0.0
 ---
 
-# Drupal.org Issue Review Skill
+# Issue Review Skill
 
-You are reviewing a Drupal.org issue to provide comprehensive feedback on code changes, discussion context, and CI status.
+You are reviewing a Drupal.org or GitLab issue to provide comprehensive feedback on code changes, discussion context, and CI status.
 
 ## Workflow
 
-### 1. Get Issue Number
+### 1. Get Issue Identifier
 
-First, determine the issue number:
+First, determine the issue source:
 
-**If user provided issue number in args:**
-- Use the provided issue number
+**GitLab issue** — input matches:
+```
+https://<host>/<namespace>/<project>/-/work_items/<iid>
+```
+Examples:
+- `https://git.drupalcode.org/project/canvas/-/work_items/3591459`
+- `https://gitlab.com/some-org/some-project/-/work_items/456`
 
-**If no issue number provided:**
+Extract: `host`, `project_path` (e.g., `project/canvas`), `issue_iid`.
+
+**Drupal.org issue** — plain number or `https://drupal.org/...` URL.
+
+**If nothing provided:**
 - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-- Extract issue number from branch name (e.g., "3571460-fix-bug" → 3571460)
-- Look for pattern: digits at start of branch name before first hyphen
-- If no issue number found, inform user and ask for issue number
+- Extract issue number (digits before first hyphen) → treat as Drupal.org issue
+- If no match, ask user for issue number or URL
 
 ### 2. Fetch Issue Data
 
-Execute the `do.php info` command to get issue details:
+#### GitLab path
+
+```bash
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}
+```
+(If 404, try `/projects/{{encoded_project_path}}/work_items/{{issue_iid}}`)
+
+```bash
+glab api --hostname {{host}} "/projects/{{encoded_project_path}}/issues/{{issue_iid}}/notes?sort=asc&per_page=100"
+```
+
+Extract:
+- title, state/status, description
+- Comments with authors, dates, key discussion points
+- Open questions and concerns
+
+#### Drupal.org path
 
 ```bash
 do.php info {{issue_number}} --format=md --comments --mrs
@@ -41,7 +65,25 @@ Parse the markdown output to extract:
 
 ### 3. Fetch MR Data
 
-Execute the `do.php gitlab:mrinfo` command to get merge request details:
+#### GitLab path
+
+```bash
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}/related_merge_requests
+```
+
+From the result, find the open MR. Then fetch full MR details:
+```bash
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/merge_requests/{{mr_iid}}
+```
+
+Extract from MR:
+- `web_url`, `diff_url` (or construct as `web_url + "/diffs"`)
+- `title`, `description`, `state`
+- `source_branch`, `target_branch`
+- `has_conflicts`, `blocking_discussions_resolved`
+- `author`
+
+#### Drupal.org path
 
 ```bash
 do.php gitlab:mrinfo {{issue_number}}
@@ -59,16 +101,23 @@ Parse the JSON output to extract:
 - `blocking_discussions_resolved`: boolean for unresolved discussions
 - `author`: MR author information
 
-**If no open MRs found:**
+**If no open MRs found (either path):**
 - Inform user that there are no open merge requests
-- Provide issue URL for manual review: `https://drupal.org/i/{{issue_number}}`
+- Provide issue URL
 - Stop here
 
 **Save the target branch** from MR data for later use (e.g., `1.x`, `2.x`, `11.x`).
 
 ### 4. Checkout the MR Branch Locally
 
-Checkout the merge request branch for local analysis:
+#### GitLab path
+
+From within the project repo directory:
+```bash
+GITLAB_HOST={{host}} glab mr checkout {{mr_iid}}
+```
+
+#### Drupal.org path
 
 ```bash
 do.php mr-checkout {{issue_number}}
@@ -144,13 +193,12 @@ Since pipeline data is not available via the GitLab API for git.drupalcode.org, 
 Display a comprehensive review summary in the terminal:
 
 ```markdown
-## Issue Review: #{{issue_number}}
+## Issue Review: {{issue_identifier}}
 
 ### Issue Details
 - **Title**: {{title}}
 - **Status**: {{status}} | **Category**: {{category}}
-- **Component**: {{component}}
-- **URL**: https://drupal.org/i/{{issue_number}}
+- **URL**: {{issue_url}}
 
 ### Merge Request
 - **URL**: {{mr_url}}
@@ -211,7 +259,7 @@ questions:
       - label: "Post to GitLab MR"
         description: "Add review comment to the GitLab merge request"
       - label: "Post to both"
-        description: "Add review comments to both Drupal.org and GitLab"
+        description: "Add review comments to both Drupal.org and GitLab (Drupal.org issues only)"
       - label: "No, just show summary"
         description: "Don't post, just display the review summary"
 ```
@@ -220,7 +268,7 @@ If user selects "No, just show summary", stop here.
 
 ### 9. Post Response (if requested)
 
-#### Post to Drupal.org
+#### Post to Drupal.org (Drupal.org issues only)
 
 Use browser automation to navigate and post comment:
 
@@ -232,7 +280,7 @@ Use browser automation to navigate and post comment:
    - Click to submit the comment
    - Handle login if needed (prompt user to login first)
 
-#### Post to GitLab
+#### Post to GitLab MR
 
 Use browser automation to navigate and post MR comment:
 
@@ -247,14 +295,14 @@ Use browser automation to navigate and post MR comment:
 #### Confirmation
 
 After posting, confirm success:
-- "Review posted to Drupal.org: https://drupal.org/i/{{issue_number}}"
+- "Review posted to Drupal.org: https://drupal.org/i/{{issue_number}}" (if applicable)
 - "Review posted to GitLab: {{mr_data.web_url}}"
 - Note any errors encountered
 
 ## Error Handling
 
-- **Branch has no issue number**: Ask user to provide issue number
-- **Issue not found**: Verify issue number and check drupal.org connectivity
+- **Branch has no issue number**: Ask user to provide issue number or GitLab URL
+- **Issue not found**: Verify issue number/URL and check connectivity
 - **No open MRs**: Inform user, provide issue URL, stop workflow
 - **Browser automation fails**: Fall back to manual URLs, continue with review
 - **Cannot post comment**: Provide instructions for manual posting

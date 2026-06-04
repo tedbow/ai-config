@@ -1,22 +1,29 @@
 ---
-name: Work on Drupal.org Merge Request
-description: This skill should be used when the user asks to "work on an MR", "work on a merge request", "help with a drupal issue", or wants to make changes to code for a Drupal.org issue's merge request.
-version: 1.0.0
+name: Work on Merge Request
+description: This skill should be used when the user asks to "work on an MR", "work on a merge request", "help with a drupal issue", "help with a gitlab issue", or wants to make changes to code for a Drupal.org or GitLab issue's merge request.
+version: 2.0.0
 args:
-  - name: issue_number
-    description: The Drupal.org issue number
+  - name: issue_ref
+    description: The Drupal.org issue number or full GitLab work_items URL (e.g. https://git.drupalcode.org/project/canvas/-/work_items/3591459)
     required: true
 ---
 
-# Work on Drupal.org Merge Request Skill
+# Work on Merge Request Skill
 
-You are helping work on a Drupal.org issue and its merge request by checking out the code, understanding the context, and implementing necessary changes.
+You are helping work on a Drupal.org or GitLab issue and its merge request by checking out the code, understanding the context, and implementing necessary changes.
 
 ## Workflow
 
-### Step 1: Get Issue Information
+### Step 1: Detect Issue Type and Get Issue Information
 
-Get the issue details by fetching comprehensive information about the Drupal.org issue (use the "Get Drupal.org Issue Information" skill or run the do.php info command).
+**Detect issue type from args:**
+
+**GitLab issue** — input matches `https://<host>/<namespace>/<project>/-/work_items/<iid>`
+- Extract: `host`, `project_path`, `issue_iid`
+
+**Drupal.org issue** — plain number or `https://drupal.org/...` URL
+
+Get full issue details using the "Get Issue Information" skill (do-issue-info), passing the issue reference.
 
 Wait for the full issue information to be retrieved before proceeding.
 
@@ -25,16 +32,24 @@ Wait for the full issue information to be retrieved before proceeding.
 After receiving the issue information, check if there are any open merge requests:
 
 **If there are NO open merge requests:**
-- Tell the user: "No open merge requests found for issue {{issue_number}}"
-- Provide the issue URL: `https://drupal.org/i/{{issue_number}}`
+- Tell the user there are no open merge requests
+- Provide the issue URL
 - STOP - do not proceed to further steps
 
 **If there are open merge requests:**
+- Note the MR IID (for GitLab path) or proceed normally (Drupal.org path)
 - Continue to Step 3
 
 ### Step 3: Checkout the Merge Request
 
-Use the following command to checkout the merge request branch locally:
+#### GitLab path
+
+From within the project repo directory:
+```bash
+GITLAB_HOST={{host}} glab mr checkout {{mr_iid}}
+```
+
+#### Drupal.org path
 
 ```bash
 do.php mr-checkout {{issue_number}}
@@ -115,7 +130,7 @@ Once you have the answers you need:
 
 ## Error Handling
 
-- **Issue not found**: Verify issue number is correct
+- **Issue not found**: Verify issue number/URL is correct
 - **No open MRs**: Inform user and provide issue URL, then stop
 - **Checkout fails**: Report error, check repository and permissions
 - **Code quality checks fail**: Fix issues before completing the work
@@ -128,5 +143,3 @@ Once you have the answers you need:
 - Write clear commit messages that reference the issue number
 - Test your changes in the context of the larger system
 - Document complex logic with inline comments
-
-

@@ -1,30 +1,67 @@
 ---
-name: Get Drupal.org Issue Information
-description: This skill should be used when the user asks to "get issue info", "fetch issue details", "show issue information", or wants to view comprehensive information about a Drupal.org issue including comments, merge requests, and related issues.
-version: 1.0.0
+name: Get Issue Information
+description: This skill should be used when the user asks to "get issue info", "fetch issue details", "show issue information", or wants to view comprehensive information about a Drupal.org issue or GitLab issue including comments, merge requests, and related issues.
+version: 2.0.0
 ---
 
-# Get Drupal.org Issue Information Skill
+# Get Issue Information Skill
 
-You are fetching and summarizing comprehensive information about a Drupal.org issue, including its description, comments, merge requests, and optionally related issues.
+You are fetching and summarizing comprehensive information about a Drupal.org or GitLab issue, including its description, comments, merge requests, and optionally related issues.
 
 ## Workflow
 
-### 1. Get Issue Number and Flags
+### 0. Detect Issue Type
 
-**If user provided issue number:**
-- Use the provided issue number
-- Check if user requested related issues (e.g., "with related issues", "include related", or `--related` flag)
+Determine whether this is a GitLab issue or a Drupal.org issue:
 
-**If no issue number provided:**
+**GitLab issue** — input matches:
+```
+https://<host>/<namespace>/<project>/-/work_items/<iid>
+```
+Examples:
+- `https://git.drupalcode.org/project/canvas/-/work_items/3591459`
+- `https://gitlab.com/some-org/some-project/-/work_items/456`
+
+Extract from URL:
+- `host` (e.g., `git.drupalcode.org`)
+- `project_path` (e.g., `project/canvas`) — URL-encode slashes as `%2F` for API calls
+- `issue_iid` (e.g., `3591459`)
+
+**Drupal.org issue** — input is a plain number or `https://drupal.org/...` URL. Extract the issue number.
+
+**If no input provided:**
 - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-- Extract issue number from branch name (e.g., "3571460-fix-bug" → 3571460)
-- Look for pattern: digits at start of branch name before first hyphen
-- If no issue number found, inform user and ask for issue number
+- Extract issue number (digits at start before first hyphen) → treat as Drupal.org issue
+- If no match, ask user for issue number or URL
+
+### 1. Get Issue Number/URL and Flags
+
+- Check if user requested related issues (e.g., "with related issues", "include related", or `--related` flag)
+- GitLab issues: ignore `--related` flag (not applicable)
 
 ### 2. Fetch Issue Data
 
-Execute the `do.php info` command to get issue details:
+#### GitLab path
+
+Fetch issue metadata:
+```bash
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}
+```
+(If that returns 404, try `/projects/{{encoded_project_path}}/work_items/{{issue_iid}}`)
+
+Fetch comments/notes:
+```bash
+glab api --hostname {{host}} "/projects/{{encoded_project_path}}/issues/{{issue_iid}}/notes?sort=asc&per_page=100"
+```
+
+Find linked merge requests:
+```bash
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}/related_merge_requests
+```
+
+**If there are errors fetching issue details:** stop immediately and report the error.
+
+#### Drupal.org path
 
 ```bash
 do.php info {{issue_number}} --format=md --comments --mrs
@@ -35,7 +72,7 @@ do.php info {{issue_number}} --format=md --comments --mrs
 - Report the error to the user
 - Do not proceed to next steps
 
-### 3. Check for Related Issues
+### 3. Check for Related Issues (Drupal.org only)
 
 Check if the user requested related issues information:
 
@@ -54,6 +91,8 @@ Check if the user requested related issues information:
 
 Summarize the issue using the format below. When referencing other issues mentioned in the issue or comments, provide URLs to those issues.
 
+For GitLab issues, use the full work_items URL as the issue URL (e.g., `https://git.drupalcode.org/project/canvas/-/work_items/3591459`).
+
 ```markdown
 # Issue Summary
 
@@ -61,6 +100,7 @@ Summarize the issue using the format below. When referencing other issues mentio
 - **Issue**: [ISSUE_NUMBER] - [ISSUE_TITLE]
 - **Status**: `[ISSUE_STATUS]` | **Priority**: `[ISSUE_PRIORITY]` | **Category**: `[ISSUE_CATEGORY]`
 - **Tags**: `[ISSUE_TAGS]`
+- **URL**: [ISSUE_URL]
 
 ## Timeline & Participants
 - **Created by**: [ISSUE_AUTHOR] on [CREATION_DATE]
@@ -130,7 +170,7 @@ Summarize the issue using the format below. When referencing other issues mentio
 ---
 
 # Related Issues Details
-<!-- Only include this section if user requested related issues -->
+<!-- Only include this section if user requested related issues (Drupal.org only) -->
 <!-- For each issue in field_issue_related_links, include the full summary following the same format as above -->
 
 ## Related Issue #[RELATED_ISSUE_NUMBER_1]
@@ -140,17 +180,17 @@ Summarize the issue using the format below. When referencing other issues mentio
 
 ## Error Handling
 
-- **Issue not found**: Verify issue number and check drupal.org connectivity
+- **Issue not found**: Verify issue number/URL and check connectivity
 - **Fetch errors**: Report the error and stop processing
 - **Related issue fetch fails**: Note the failure but continue with main issue summary
-- **Branch has no issue number**: Ask user to provide issue number
+- **Branch has no issue number**: Ask user to provide issue number or URL
 
 ## Tips
 
-- Provide URLs for all issue references (format: `https://drupal.org/i/{{issue_number}}`)
+- For Drupal.org issues, provide URLs in format: `https://drupal.org/i/{{issue_number}}`
+- For GitLab issues, use the full `/work_items/` URL
 - Summarize comments focusing on key technical points and decisions
 - Identify unresolved questions that still need attention
 - List all participants who contributed to the discussion
-- When user requests related issues, provide full context for each related issue
+- When user requests related issues (Drupal.org), provide full context for each related issue
 - If issue number not provided, try to extract from current git branch
-
