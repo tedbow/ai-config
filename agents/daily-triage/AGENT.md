@@ -178,9 +178,9 @@ Compare Jira status against actual issue/PR state:
 
 ## CHECKPOINT 1: Present Assessment
 
-**STOP and present findings to user using AskUserQuestion.**
+Present findings as plain output (table + launcher lines below). The launcher lines are the primary hand-off — print them **every time**, as part of this assessment, BEFORE asking any question. Do NOT wait for the user to select a ticket first.
 
-Display a summary table:
+Display a summary table, then a launcher block:
 
 ```markdown
 ## Daily Triage Assessment
@@ -200,7 +200,14 @@ Display a summary table:
 1. **SCP-XXX**: Update Jira status to reflect merged MR
 2. **SCP-YYY**: Ready for code review
 3. **SCP-ZZZ**: Address reviewer feedback
+
+### Launch Workers — copy/paste into a new terminal (one per free clone)
+- SCP-XXX (Contributor) → `claude "/work-triage SCP-XXX"`
+- SCP-YYY (Reviewer)    → `claude "/work-triage SCP-YYY"`
+- SCP-ZZZ (Reviewer)    → `claude "/work-triage SCP-ZZZ"`
 ```
+
+**Include one launcher line per ticket assigned to the user** (prioritize assigned; you may add unassigned ones the user is likely to take). The `work-triage` skill creates each ticket's `scp-NNN.md` stub on first run — this session does NOT need to pre-create stubs.
 
 ### Write Triage File
 
@@ -227,88 +234,51 @@ Write `~/triage/YYYY-MM-DD/triage.md` (use actual date from system context):
 ## Recommendations
 [numbered list from above]
 
+## Launch Workers
+[one line per assigned ticket:]
+- SCP-XXX (Contributor) → `claude "/work-triage SCP-XXX"`
+- SCP-YYY (Reviewer)    → `claude "/work-triage SCP-YYY"`
+
 ## Work Log
 
 Per-ticket work logs live in this folder as `scp-NNN.md`, written by worker sessions.
 Run `ls ~/triage/YYYY-MM-DD/` for the day; read `scp-*.md` for per-ticket status.
 ```
 
-`triage.md` holds the assessment ONLY. It does NOT hold per-ticket work-log state — that moved to per-ticket files so parallel worker sessions don't race. This agent rewrites `triage.md` in full whenever the assessment changes, but never writes `scp-NNN.md` after creating the stub (next step).
+`triage.md` holds the assessment + launcher lines ONLY. It does NOT hold per-ticket work-log state — that moved to per-ticket files so parallel worker sessions don't race. This agent rewrites `triage.md` in full whenever the assessment changes, but never writes `scp-NNN.md` (worker sessions own those, self-created on first run).
 
-### Present to User
+### Ask What's Next (after the launcher lines are already printed)
 
-Ask which issues to dispatch. Selecting a ticket = generate its worker launcher line (Phase 2 Step B), NOT work it in this session.
+The launcher lines are already on screen — the user can copy any of them right now. This question is only for what THIS session should do next; it is not required for the user to launch workers.
 
 ```
 questions:
-  - question: "Which issues should I prepare worker launch commands for?"
-    header: "Dispatch Issues"
-    multiSelect: true
+  - question: "Launcher lines are above — copy any into a new terminal. Anything you want me to do in THIS session?"
+    header: "Next"
+    multiSelect: false
     options:
-      - label: "SCP-XXX (Contributor)"
-        description: "[Issue summary] - needs code work"
-      - label: "SCP-YYY (Reviewer)"
-        description: "[Issue summary] - ready for review"
-      - label: "All assigned issues"
-        description: "Emit launcher lines for every assigned ticket"
+      - label: "Nothing — I'll launch workers myself"
+        description: "Stop here; you copy/paste the launcher lines into fresh terminals"
+      - label: "Work SCP-XXX here"
+        description: "Run the issue inline in this session instead of a separate worker"
+      - label: "Update Jira / post a comment"
+        description: "Handle a Checkpoint-2 external action for a ticket"
 ```
 
-After the user selects, go to Phase 2: create stubs, print the launcher block, stop. Do not start working a ticket unless the user then explicitly asks to work it in this session.
+If the user picks "Nothing," stop. Do not invoke `review-issue` / `work-on-mr` here.
 
 ---
 
-## Phase 2: Dispatch Selected Issues (Parallel Model)
+## Phase 2: Work a Ticket Inline (Only If Asked)
 
-This agent does **not** work the issues itself. Issues are worked in separate `claude` sessions — one per ticket, each in its own repo clone — so multiple can run in parallel without git branch conflicts. This session's job at Phase 2 is to **create per-ticket stubs and hand the user launcher commands**.
+Default path is parallel workers: the user copies a launcher line into a new terminal, which runs the `work-triage` skill (own clone, own `scp-NNN.md`). This session does nothing further.
 
-**CRITICAL — do this every time, in order:**
-1. Run Step A (create stubs) then Step B (print the launcher block) for the selected tickets. This is MANDATORY and always comes first. Even for a single selected ticket, print its launcher line.
-2. Do NOT invoke `review-issue` or `work-on-mr` in THIS session. Selecting a ticket at Checkpoint 1 means "prepare it for a worker," NOT "work it here." Emitting the launcher line is the whole job.
-3. Only work a ticket inline (Step C) if the user, AFTER seeing the launcher lines, explicitly says to do it in this session (e.g. "work SCP-640 here", "do it in this session"). Absent that, stop after Step B.
-
-### Step A: Create Per-Ticket Work-Log Stubs
-
-For each selected ticket, create `~/triage/YYYY-MM-DD/scp-NNN.md` (lowercase key) IF it does not already exist:
-
-```markdown
-# SCP-NNN
-
-- Jira: SCP-NNN
-- Issue: [issue url or number]
-- Role: [Contributor/Reviewer]
-- Status: pending
-
-## Log
-- stub created by triage session
-
-## Notes
-```
-
-Do NOT overwrite an existing `scp-NNN.md` — a worker may already be running it.
-
-### Step B: Emit Launcher Commands
-
-Print one copy-paste line per selected ticket. The user opens a new terminal, `cd`s into any free clone (Drupal or SaaS), and pastes the command:
-
-```markdown
-## Launch parallel workers
-
-Open a terminal per ticket, cd into a free clone, paste:
-
-- SCP-123 (Contributor) → `claude "/work-triage SCP-123"`
-- SCP-456 (Reviewer)    → `claude "/work-triage SCP-456"`
-```
-
-Each worker session runs the `work-triage` skill, which reads `triage.md`, checks out the branch in the current clone, and works the one ticket — writing only its own `scp-NNN.md`.
-
-### Step C: (Optional) Work One Inline
-
-If the user prefers to work a single ticket in THIS session instead of spawning a worker, invoke the skill directly here:
+**Only** work a ticket in THIS session if the user explicitly asks ("work SCP-640 here", "do it in this session"). Then:
 
 - Reviewer → `Skill: review-issue` with the issue url/number
 - Contributor → `Skill: work-on-mr` with the issue url/number
 
-Then update that ticket's `scp-NNN.md` as you go (this session becomes that ticket's sole writer). Only do this for ONE ticket — for multiple, use the launcher lines so each gets its own clone.
+Then update that ticket's `scp-NNN.md` as you go (this session becomes that ticket's sole writer). Only do this for ONE ticket — for multiple, tell the user to use the launcher lines so each gets its own clone.
 
 ### Work Log Status Values (written by worker sessions, in `scp-NNN.md`)
 
