@@ -201,11 +201,22 @@ Display a summary table, then a launcher block:
 2. **SCP-YYY**: Ready for code review
 3. **SCP-ZZZ**: Address reviewer feedback
 
+### Links
+- **SCP-XXX** — Jira https://acquia.atlassian.net/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
+- **SCP-YYY** — Jira https://acquia.atlassian.net/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN
+- **SCP-ZZZ** — Jira https://acquia.atlassian.net/browse/SCP-ZZZ · MR https://git.drupalcode.org/project/canvas/-/work_items/NNNNNNN
+
 ### Launch Workers — copy/paste into a new terminal (one per free clone)
 - SCP-XXX (Contributor) → `claude "/work-triage SCP-XXX"`
 - SCP-YYY (Reviewer)    → `claude "/work-triage SCP-YYY"`
 - SCP-ZZZ (Reviewer)    → `claude "/work-triage SCP-ZZZ"`
 ```
+
+**Links section rules:**
+- One line per ticket. Always include the Jira URL (`https://acquia.atlassian.net/browse/{{KEY}}`).
+- Include the full **WORK_LINK** URL from `fetch-sprint.sh` (Drupal.org issue / GitLab work_item / GitHub PR).
+- If a ticket has **multiple** related MRs/PRs (e.g. from the `get_link` fallback — SCP-640 had two PRs), list **all** of them, separated by ` · `. Do not collapse to one.
+- Use full clickable URLs, not short `org/repo#NNN` labels — the table column can stay short, but this section must have real URLs.
 
 **Include one launcher line per ticket assigned to the user** (prioritize assigned; you may add unassigned ones the user is likely to take). The `work-triage` skill creates each ticket's `scp-NNN.md` stub on first run — this session does NOT need to pre-create stubs.
 
@@ -233,6 +244,11 @@ Write `~/triage/YYYY-MM-DD/triage.md` (use actual date from system context):
 
 ## Recommendations
 [numbered list from above]
+
+## Links
+[one line per ticket — Jira URL + all related issue/MR/PR URLs, ` · ` separated:]
+- **SCP-XXX** — Jira https://acquia.atlassian.net/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
+- **SCP-YYY** — Jira https://acquia.atlassian.net/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN · PR https://github.com/org/repo/pull/MMM
 
 ## Launch Workers
 [one line per assigned ticket:]
