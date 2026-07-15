@@ -1,18 +1,24 @@
 ---
 name: Issue Review
-description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "review a gitlab issue", "check issue status", "analyze a merge request", or wants to examine a Drupal.org or GitLab issue's code changes, discussion, and CI status.
-version: 2.0.0
+description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "review a gitlab issue", "review a github pr", "check issue status", "analyze a merge request", or wants to examine a Drupal.org issue, GitLab issue, or GitHub PR's code changes, discussion, and CI status.
+version: 2.1.0
 ---
 
 # Issue Review Skill
 
-You are reviewing a Drupal.org or GitLab issue to provide comprehensive feedback on code changes, discussion context, and CI status.
+You are reviewing a Drupal.org issue, GitLab issue, or GitHub PR to provide comprehensive feedback on code changes, discussion context, and CI status.
 
 ## Workflow
 
 ### 1. Get Issue Identifier
 
 First, determine the issue source:
+
+**GitHub PR** — input matches:
+```
+https://github.com/<owner>/<repo>/pull/<number>
+```
+Extract: `owner`, `repo`, `pr_number`.
 
 **GitLab issue** — input matches:
 ```
@@ -32,6 +38,25 @@ Extract: `host`, `project_path` (e.g., `project/canvas`), `issue_iid`.
 - If no match, ask user for issue number or URL
 
 ### 2. Fetch Issue Data
+
+#### GitHub path
+
+```bash
+gh pr view {{pr_url}} --json number,title,body,state,author,reviews,statusCheckRollup,commits,comments,headRefName,baseRefName,mergeStateStatus
+```
+
+Fetch inline review comments:
+```bash
+gh api repos/{{owner}}/{{repo}}/pulls/{{pr_number}}/comments
+```
+
+Extract:
+- title, state, description/body
+- `headRefName` (source branch), `baseRefName` (target branch)
+- `author`
+- Reviews with reviewers, decisions (APPROVED/CHANGES_REQUESTED/COMMENTED), and comment text
+- `statusCheckRollup` (CI status per check)
+- Comments thread for discussion context
 
 #### GitLab path
 
@@ -63,7 +88,17 @@ Parse the markdown output to extract:
 - **Open questions**: unresolved discussion points
 - **Concerns raised**: issues mentioned in comments
 
-### 3. Fetch MR Data
+### 3. Fetch MR/PR Data
+
+#### GitHub path
+
+The PR itself is the code artifact. From the `gh pr view` output:
+- `headRefName` = source branch
+- `baseRefName` = target branch
+- `state` = open/merged/closed
+- `mergeStateStatus` = mergeable state (CLEAN, DIRTY, BLOCKED, etc.)
+
+No separate MR fetch needed — proceed to Step 4.
 
 #### GitLab path
 
@@ -108,7 +143,13 @@ Parse the JSON output to extract:
 
 **Save the target branch** from MR data for later use (e.g., `1.x`, `2.x`, `11.x`).
 
-### 4. Checkout the MR Branch Locally
+### 4. Checkout the MR/PR Branch Locally
+
+#### GitHub path
+
+```bash
+gh pr checkout {{pr_url}}
+```
 
 #### GitLab path
 
@@ -170,7 +211,17 @@ git diff origin/{{target_branch}}...HEAD --stat
 - Don't provide line-by-line commentary unless critical
 - User can drill deeper into specific files if needed
 
-### 6. Check GitLab CI Status
+### 6. Check CI Status
+
+#### GitHub path
+
+CI status is already available from `statusCheckRollup` in the `gh pr view` output. Extract:
+- Overall rollup state (SUCCESS/FAILURE/PENDING)
+- Per-check name and conclusion
+
+No browser automation needed.
+
+#### GitLab path
 
 Since pipeline data is not available via the GitLab API for git.drupalcode.org, use browser automation to check CI status:
 
@@ -187,6 +238,10 @@ Since pipeline data is not available via the GitLab API for git.drupalcode.org, 
 - If browser automation fails or page structure is unclear, fall back to manual check
 - Provide URL: `{{mr_data.web_url}}/-/pipelines`
 - Note: "Unable to automatically check CI status, please verify manually"
+
+#### Drupal.org path
+
+Same browser automation approach as GitLab path above.
 
 ### 7. Generate Review Summary
 
@@ -247,26 +302,58 @@ Display a comprehensive review summary in the terminal:
 
 ### 8. Offer to Post Response
 
-Use AskUserQuestion to ask if user wants to post their review:
+Use AskUserQuestion to ask if user wants to post their review. Options depend on issue type:
 
+**GitHub PR:**
 ```
-questions:
-  - question: "Would you like to post your review?"
-    header: "Post Review"
-    options:
-      - label: "Post to Drupal.org issue"
-        description: "Add review comment to the Drupal.org issue queue"
-      - label: "Post to GitLab MR"
-        description: "Add review comment to the GitLab merge request"
-      - label: "Post to both"
-        description: "Add review comments to both Drupal.org and GitLab (Drupal.org issues only)"
-      - label: "No, just show summary"
-        description: "Don't post, just display the review summary"
+options:
+  - label: "Post comment to GitHub PR"
+    description: "Add review comment to the GitHub pull request"
+  - label: "Approve PR"
+    description: "Submit an approving review"
+  - label: "Request changes"
+    description: "Submit review requesting changes"
+  - label: "No, just show summary"
+    description: "Don't post, just display the review summary"
+```
+
+**GitLab issue:**
+```
+options:
+  - label: "Post to GitLab MR"
+    description: "Add review comment to the GitLab merge request"
+  - label: "No, just show summary"
+    description: "Don't post, just display the review summary"
+```
+
+**Drupal.org issue:**
+```
+options:
+  - label: "Post to Drupal.org issue"
+    description: "Add review comment to the Drupal.org issue queue"
+  - label: "Post to GitLab MR"
+    description: "Add review comment to the GitLab merge request"
+  - label: "Post to both"
+    description: "Add review comments to both Drupal.org and GitLab"
+  - label: "No, just show summary"
+    description: "Don't post, just display the review summary"
 ```
 
 If user selects "No, just show summary", stop here.
 
 ### 9. Post Response (if requested)
+
+#### Post to GitHub PR
+
+```bash
+# Comment only:
+gh pr comment {{pr_url}} --body "{{review_text}}"
+
+# Or with review decision:
+gh pr review {{pr_url}} --comment --body "{{review_text}}"
+gh pr review {{pr_url}} --approve --body "{{review_text}}"
+gh pr review {{pr_url}} --request-changes --body "{{review_text}}"
+```
 
 #### Post to Drupal.org (Drupal.org issues only)
 
@@ -295,15 +382,16 @@ Use browser automation to navigate and post MR comment:
 #### Confirmation
 
 After posting, confirm success:
-- "Review posted to Drupal.org: https://drupal.org/i/{{issue_number}}" (if applicable)
-- "Review posted to GitLab: {{mr_data.web_url}}"
+- "Review posted to GitHub PR: {{pr_url}}" (GitHub)
+- "Review posted to Drupal.org: https://drupal.org/i/{{issue_number}}" (Drupal.org)
+- "Review posted to GitLab: {{mr_data.web_url}}" (GitLab)
 - Note any errors encountered
 
 ## Error Handling
 
-- **Branch has no issue number**: Ask user to provide issue number or GitLab URL
+- **Branch has no issue number**: Ask user to provide issue number, GitLab URL, or GitHub PR URL
 - **Issue not found**: Verify issue number/URL and check connectivity
-- **No open MRs**: Inform user, provide issue URL, stop workflow
+- **No open MRs**: Inform user, provide issue URL, stop workflow (Drupal.org/GitLab; N/A for GitHub — PR is the artifact)
 - **Browser automation fails**: Fall back to manual URLs, continue with review
 - **Cannot post comment**: Provide instructions for manual posting
 

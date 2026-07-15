@@ -1,18 +1,30 @@
 ---
 name: Get Issue Information
-description: This skill should be used when the user asks to "get issue info", "fetch issue details", "show issue information", or wants to view comprehensive information about a Drupal.org issue or GitLab issue including comments, merge requests, and related issues.
-version: 2.0.0
+description: This skill should be used when the user asks to "get issue info", "fetch issue details", "show issue information", or wants to view comprehensive information about a Drupal.org issue, GitLab issue, or GitHub PR including comments, merge requests, and related issues.
+version: 2.1.0
 ---
 
 # Get Issue Information Skill
 
-You are fetching and summarizing comprehensive information about a Drupal.org or GitLab issue, including its description, comments, merge requests, and optionally related issues.
+You are fetching and summarizing comprehensive information about a Drupal.org issue, GitLab issue, or GitHub PR, including its description, comments, merge requests, and optionally related issues.
 
 ## Workflow
 
 ### 0. Detect Issue Type
 
-Determine whether this is a GitLab issue or a Drupal.org issue:
+Determine whether this is a GitHub PR, GitLab issue, or Drupal.org issue:
+
+**GitHub PR** — input matches:
+```
+https://github.com/<owner>/<repo>/pull/<number>
+```
+Examples:
+- `https://github.com/acquia/drupal-recommended-project/pull/123`
+
+Extract from URL:
+- `owner` (e.g., `acquia`)
+- `repo` (e.g., `drupal-recommended-project`)
+- `pr_number` (e.g., `123`)
 
 **GitLab issue** — input matches:
 ```
@@ -37,9 +49,23 @@ Extract from URL:
 ### 1. Get Issue Number/URL and Flags
 
 - Check if user requested related issues (e.g., "with related issues", "include related", or `--related` flag)
-- GitLab issues: ignore `--related` flag (not applicable)
+- GitLab and GitHub issues: ignore `--related` flag (not applicable)
 
 ### 2. Fetch Issue Data
+
+#### GitHub path
+
+Fetch PR metadata, review comments, and timeline comments:
+```bash
+gh pr view {{pr_url}} --json number,title,body,state,author,reviews,statusCheckRollup,commits,comments,headRefName,baseRefName,mergeStateStatus
+```
+
+Fetch inline review comments:
+```bash
+gh api repos/{{owner}}/{{repo}}/pulls/{{pr_number}}/comments
+```
+
+**If there are errors fetching PR details:** stop immediately and report the error.
 
 #### GitLab path
 
@@ -72,7 +98,16 @@ do.php info {{issue_number}} --format=md --comments --mrs
 - Report the error to the user
 - Do not proceed to next steps
 
-### 3. Check for Related Issues (Drupal.org only)
+### 3. Find Linked PRs/MRs (GitHub path)
+
+From the `gh pr view` output, the PR itself is the code artifact. Extract:
+- `headRefName` (branch with changes)
+- `baseRefName` (target branch)
+- `state` (open/merged/closed)
+- `statusCheckRollup` (CI status)
+- `reviews` (review decisions and comments)
+
+### 4. Check for Related Issues (Drupal.org only)
 
 Check if the user requested related issues information:
 
@@ -87,11 +122,12 @@ Check if the user requested related issues information:
 **If related issues were NOT requested:**
 - Skip fetching related issue details
 
-### 4. Generate Issue Summary
+### 5. Generate Issue Summary
 
 Summarize the issue using the format below. When referencing other issues mentioned in the issue or comments, provide URLs to those issues.
 
 For GitLab issues, use the full work_items URL as the issue URL (e.g., `https://git.drupalcode.org/project/canvas/-/work_items/3591459`).
+For GitHub PRs, use the full PR URL (e.g., `https://github.com/owner/repo/pull/123`). The "Merge Requests" section becomes "Pull Request" with CI status from `statusCheckRollup` and review status from `reviews`.
 
 ```markdown
 # Issue Summary
@@ -189,8 +225,9 @@ For GitLab issues, use the full work_items URL as the issue URL (e.g., `https://
 
 - For Drupal.org issues, provide URLs in format: `https://drupal.org/i/{{issue_number}}`
 - For GitLab issues, use the full `/work_items/` URL
+- For GitHub PRs, use the full `https://github.com/owner/repo/pull/N` URL
 - Summarize comments focusing on key technical points and decisions
 - Identify unresolved questions that still need attention
 - List all participants who contributed to the discussion
-- When user requests related issues (Drupal.org), provide full context for each related issue
+- When user requests related issues (Drupal.org only), provide full context for each related issue
 - If issue number not provided, try to extract from current git branch

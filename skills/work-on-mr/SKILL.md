@@ -1,22 +1,25 @@
 ---
 name: Work on Merge Request
-description: This skill should be used when the user asks to "work on an MR", "work on a merge request", "help with a drupal issue", "help with a gitlab issue", or wants to make changes to code for a Drupal.org or GitLab issue's merge request.
-version: 2.0.0
+description: This skill should be used when the user asks to "work on an MR", "work on a merge request", "help with a drupal issue", "help with a gitlab issue", "help with a github pr", or wants to make changes to code for a Drupal.org issue, GitLab issue, or GitHub PR.
+version: 2.1.0
 args:
   - name: issue_ref
-    description: The Drupal.org issue number or full GitLab work_items URL (e.g. https://git.drupalcode.org/project/canvas/-/work_items/3591459)
+    description: The Drupal.org issue number, full GitLab work_items URL (e.g. https://git.drupalcode.org/project/canvas/-/work_items/3591459), or full GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)
     required: true
 ---
 
 # Work on Merge Request Skill
 
-You are helping work on a Drupal.org or GitLab issue and its merge request by checking out the code, understanding the context, and implementing necessary changes.
+You are helping work on a Drupal.org issue, GitLab issue, or GitHub PR by checking out the code, understanding the context, and implementing necessary changes.
 
 ## Workflow
 
 ### Step 1: Detect Issue Type and Get Issue Information
 
 **Detect issue type from args:**
+
+**GitHub PR** — input matches `https://github.com/<owner>/<repo>/pull/<number>`
+- Extract: `owner`, `repo`, `pr_number`
 
 **GitLab issue** — input matches `https://<host>/<namespace>/<project>/-/work_items/<iid>`
 - Extract: `host`, `project_path`, `issue_iid`
@@ -40,7 +43,13 @@ After receiving the issue information, check if there are any open merge request
 - Note the MR IID (for GitLab path) or proceed normally (Drupal.org path)
 - Continue to Step 3
 
-### Step 3: Checkout the Merge Request
+### Step 3: Checkout the Merge Request / Pull Request
+
+#### GitHub path
+
+```bash
+gh pr checkout {{pr_url}}
+```
 
 #### GitLab path
 
@@ -131,7 +140,7 @@ Once you have the answers you need:
 ## Error Handling
 
 - **Issue not found**: Verify issue number/URL is correct
-- **No open MRs**: Inform user and provide issue URL, then stop
+- **No open MRs**: Inform user and provide issue URL, then stop (Drupal.org/GitLab; N/A for GitHub — PR is passed directly)
 - **Checkout fails**: Report error, check repository and permissions
 - **Code quality checks fail**: Fix issues before completing the work
 

@@ -1,6 +1,6 @@
 ---
 name: Daily Triage
-description: Use this agent to triage daily Jira tickets and associated Drupal.org issues. Fetches tickets from a configured Jira board, identifies reviewer/contributor roles, and processes each issue with appropriate skills.
+description: Use this agent to triage daily Jira tickets and associated Drupal.org issues, GitLab issues, or GitHub PRs. Fetches tickets from a configured Jira board, identifies reviewer/contributor roles, and processes each issue with appropriate skills.
 tools:
   - mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
   - mcp__plugin_atlassian_atlassian__getJiraIssue
@@ -19,7 +19,7 @@ tools:
 
 # Daily Triage Agent
 
-You are triaging the user's daily Jira tickets from the configured project and associated Drupal.org issues. Your goal is to provide a comprehensive assessment and help work through issues efficiently.
+You are triaging the user's daily Jira tickets from the configured project and associated Drupal.org issues, GitLab issues, and GitHub PRs. Your goal is to provide a comprehensive assessment and help work through issues efficiently.
 
 ## Phase 1: Autonomous Assessment
 
@@ -42,14 +42,14 @@ maxResults: 25
 **Phase A: Extract from descriptions first (no API calls)**
 
 Parse the description field already returned for:
-- `https://www.drupal.org/project/[^/]+/issues/(\d+)`
-- `https://drupal.org/i/(\d+)`
-- Jira smartlinks containing drupal.org
-- `#NNNNNNN:` pattern in summary
+- Drupal.org: `https://www.drupal.org/project/[^/]+/issues/(\d+)` or `https://drupal.org/i/(\d+)` or `#NNNNNNN:` pattern in summary
+- GitLab work_items: `https://[^/]+/[^/]+/[^/]+/-/work_items/(\d+)` → capture full URL
+- GitHub PR: `https://github.com/[^/]+/[^/]+/pull/(\d+)` → capture full URL
+- Jira smartlinks containing any of the above
 
 **Phase B: Fetch remote links ONLY for tickets missing a link**
 
-For tickets where no Drupal.org link was found in the description AND are assigned to the user:
+For tickets where no Drupal.org/GitLab/GitHub link was found in the description AND are assigned to the user:
 
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
@@ -62,21 +62,33 @@ issueIdOrKey: {{JIRA_KEY}}
 - Prioritize user's assigned tickets
 - If you hit rate limits during this phase, stop and proceed with what you have
 
-### Step 3: Fetch Drupal.org Issue Information (Selective)
+### Step 3: Fetch Issue Information (Selective)
 
-**Do NOT fetch all Drupal.org issues upfront.** Only fetch details for:
+**Do NOT fetch all issues upfront.** Only fetch details for:
 1. Tickets assigned to the user (priority)
 2. Maximum of 5 tickets in the first pass
 
-For selected tickets, use the do.php command:
+Use the appropriate command based on issue type:
 
+**Drupal.org:**
 ```bash
 do.php info {{issue_number}} --format=md --comments --mrs
 ```
 
+**GitLab work_items:**
+```bash
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}
+```
+
+**GitHub PR:**
+```bash
+gh pr view {{pr_url}} --json number,title,state,author,reviews,statusCheckRollup,headRefName,baseRefName
+```
+
 Extract:
-- Issue status
-- Open merge requests and their states
+- Issue/PR status and state
+- Open merge requests / PR review status and CI
+- Author (for GitHub: compare with user to determine role)
 - Recent activity
 - Unresolved questions
 
@@ -92,22 +104,23 @@ Based on the **Jira status column**, determine the user's role:
 | "In Review" | **Reviewer** | Needs to review code changes |
 | "Ready for Review" | **Reviewer** | Needs to review code changes |
 | "Blocked" | **Investigate** | Check what's blocking |
-| Other | **Check Drupal.org** | Determine from issue status |
+| Other | **Check issue** | Determine from issue status |
 
-If the Jira status is unclear, check the Drupal.org issue:
-- If user is author of open MR and status is "Needs work" → **Contributor**
-- If user is NOT author of open MR and status is "Needs review" → **Reviewer**
+If the Jira status is unclear, check the issue:
+- **Drupal.org**: If user is author of open MR and status is "Needs work" → **Contributor**; if NOT author and "Needs review" → **Reviewer**
+- **GitLab**: Same pattern as Drupal.org
+- **GitHub PR**: If PR `author.login` matches user's GitHub username → **Contributor**; otherwise → **Reviewer**
 
 ### Step 5: Detect Discrepancies
 
-Compare Jira status against actual Drupal.org/MR state:
+Compare Jira status against actual issue/PR state:
 
 **Examples of discrepancies to flag:**
-- Jira says "In Progress" but MR is already merged
-- Jira says "In Review" but MR has failing CI
-- Jira is stale (no updates in >7 days) but Drupal.org has recent activity
-- MR has "Needs work" status but Jira doesn't reflect this
-- MR was closed/abandoned but Jira still open
+- Jira says "In Progress" but MR/PR is already merged
+- Jira says "In Review" but MR/PR has failing CI
+- Jira is stale (no updates in >7 days) but issue has recent activity
+- MR has "Needs work" or PR has "Changes requested" but Jira doesn't reflect this
+- MR/PR was closed/abandoned but Jira still open
 
 ---
 
@@ -120,10 +133,11 @@ Display a summary table:
 ```markdown
 ## Daily Triage Assessment
 
-| Jira Key | Summary | Status | Role | Drupal.org | MR Status | Notes |
-|----------|---------|--------|------|------------|-----------|-------|
+| Jira Key | Summary | Status | Role | Issue | MR/PR Status | Notes |
+|----------|---------|--------|------|-------|--------------|-------|
 | SCP-XXX | [summary] | In Progress | Contributor | #NNNNNNN | Open/NW | [any discrepancies] |
-| SCP-YYY | [summary] | In Review | Reviewer | #NNNNNNN | Open/NR | CI passing |
+| SCP-YYY | [summary] | In Review | Reviewer | org/repo#NNN | Open/NR | CI passing |
+| SCP-ZZZ | [summary] | In Review | Reviewer | canvas#3591459 | Open | CI passing |
 ...
 
 ### Discrepancies Found
@@ -206,9 +220,9 @@ questions:
      - "No, I'll push manually"
    ```
 
-2. **Drupal.org Comments**
+2. **Issue Comments** (Drupal.org / GitLab / GitHub)
    ```
-   question: "Post this comment to Drupal.org issue #{{issue_number}}?"
+   question: "Post this comment to {{issue_identifier}}?"
    options:
      - "Yes, post comment"
      - "No, skip posting"
@@ -242,7 +256,21 @@ After user approval at Checkpoint 2:
 git push origin HEAD
 ```
 
-### Post Drupal.org Comment (if approved)
+### Post Issue Comment (if approved)
+
+**GitHub PR:**
+```bash
+gh pr comment {{pr_url}} --body "{{comment_text}}"
+```
+
+**GitLab MR:**
+```bash
+glab api --hostname {{host}} --method POST \
+  /projects/{{encoded_project_path}}/issues/{{issue_iid}}/notes \
+  -f body="{{comment_text}}"
+```
+
+**Drupal.org:**
 Use Playwright to navigate and post comment as defined in review-issue skill.
 
 ### Update Jira (if approved)
@@ -281,7 +309,7 @@ transition: { "id": "{{transition_id}}" }
   - Provide board URL: `{{board_url}}`
   - Offer to accept manual ticket keys from user
 - **Jira API errors (other)**: Report error, provide manual URL to Jira board
-- **Drupal.org fetch fails**: Note the failure, continue with other tickets
+- **Issue fetch fails (Drupal.org/GitLab/GitHub)**: Note the failure, continue with other tickets
 - **No open MRs**: Flag ticket for manual review, may need MR created
 - **Branch conflicts**: Stash changes, report conflict, ask user for resolution
 
