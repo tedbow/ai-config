@@ -24,7 +24,32 @@ You are triaging the user's daily Jira tickets from the configured project and a
 ## Critical Rules
 
 - **NEVER probe the environment** (no `which`, `jira version`, `glab version`, CLI detection, or any shell commands to discover what tools are installed). Use MCP tools for Jira. Use `do.php` for Drupal.org. Use `gh` for GitHub. Use `glab` for GitLab. These are always available — skip detection entirely.
-- **Start immediately** with Step 1 (fetch Jira tickets via MCP). No preamble, no setup checks.
+- **Start immediately** with Step 0 below. No preamble, no setup checks.
+
+## Step 0: Check for Existing Triage File
+
+```bash
+ls ~/triage/$(date +%Y-%m-%d).md 2>/dev/null
+```
+
+**If file exists**, use AskUserQuestion:
+
+```
+question: "Triage file found for today. How would you like to proceed?"
+options:
+  - label: "Use existing file"
+    description: "Skip re-fetching — use cached assessment from this file"
+  - label: "Recheck everything"
+    description: "Re-fetch Jira tickets and all issue details, overwrite file"
+  - label: "Recheck assigned only"
+    description: "Re-fetch only tickets assigned to you, merge with existing"
+```
+
+- **"Use existing file"** → Read `~/triage/YYYY-MM-DD.md`, skip to CHECKPOINT 1 and present the cached assessment to the user
+- **"Recheck everything"** → proceed with Phase 1, overwrite file at Checkpoint 1
+- **"Recheck assigned only"** → proceed with Phase 1 but limit issue fetching to assigned tickets, merge into existing file at Checkpoint 1
+
+**If file does not exist** → proceed with Phase 1 immediately.
 
 ## Phase 1: Autonomous Assessment
 
@@ -155,6 +180,44 @@ Display a summary table:
 3. **SCP-ZZZ**: Address reviewer feedback
 ```
 
+### Write Triage File
+
+Before presenting to user, write assessment to file:
+
+```bash
+mkdir -p ~/triage
+```
+
+Write `~/triage/YYYY-MM-DD.md` (use actual date from system context):
+
+```markdown
+# Daily Triage — YYYY-MM-DD
+
+## Assessment
+
+| Jira Key | Summary | Status | Role | Issue | MR/PR Status | Notes |
+|----------|---------|--------|------|-------|--------------|-------|
+[rows from assessment table]
+
+## Discrepancies
+[list from above, or "None"]
+
+## Recommendations
+[numbered list from above]
+
+## Work Log
+
+[one section per ticket:]
+### SCP-XXX
+- Status: pending
+- Issue: [issue identifier]
+- Role: [Contributor/Reviewer]
+```
+
+Use the Bash tool to write this file. Rewrite full file (not append) on every update.
+
+### Present to User
+
 Ask user which issues to work on:
 
 ```
@@ -179,12 +242,14 @@ questions:
 
 ### For Each Selected Issue:
 
+**Update triage file Work Log to `in-progress` before starting each issue.**
+
 #### If Role is REVIEWER:
 
 1. Invoke the review-issue skill:
    ```
    Skill: review-issue
-   args: {{drupal_issue_number}}
+   args: {{issue_url_or_number}}
    ```
 
 2. Follow the review-issue workflow which will:
@@ -194,12 +259,14 @@ questions:
    - Generate review summary
    - Offer to post review
 
+3. After completing: update Work Log to `review-posted` (or `done` if no post requested).
+
 #### If Role is CONTRIBUTOR:
 
 1. Invoke the work-on-mr skill:
    ```
    Skill: work-on-mr
-   args: {{drupal_issue_number}}
+   args: {{issue_url_or_number}}
    ```
 
 2. Follow the work-on-mr workflow which will:
@@ -208,6 +275,21 @@ questions:
    - Ask what changes are needed
    - Implement changes
    - Run code quality checks
+
+3. After completing: update Work Log to `pushed` or `done`.
+
+### Work Log Status Values
+
+| Event | Status |
+|---|---|
+| Starting work | `in-progress` |
+| Review posted | `review-posted` |
+| Code pushed | `pushed` |
+| Jira updated | `jira-updated` |
+| Blocked | `blocked — [reason]` |
+| Complete | `done` |
+
+Rewrite the full triage file on each update.
 
 ---
 
