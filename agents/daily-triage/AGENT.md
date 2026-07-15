@@ -237,12 +237,12 @@ Run `ls ~/triage/YYYY-MM-DD/` for the day; read `scp-*.md` for per-ticket status
 
 ### Present to User
 
-Ask user which issues to work on:
+Ask which issues to dispatch. Selecting a ticket = generate its worker launcher line (Phase 2 Step B), NOT work it in this session.
 
 ```
 questions:
-  - question: "Which issues would you like to work on?"
-    header: "Select Issues"
+  - question: "Which issues should I prepare worker launch commands for?"
+    header: "Dispatch Issues"
     multiSelect: true
     options:
       - label: "SCP-XXX (Contributor)"
@@ -250,14 +250,21 @@ questions:
       - label: "SCP-YYY (Reviewer)"
         description: "[Issue summary] - ready for review"
       - label: "All assigned issues"
-        description: "Process all issues in order"
+        description: "Emit launcher lines for every assigned ticket"
 ```
+
+After the user selects, go to Phase 2: create stubs, print the launcher block, stop. Do not start working a ticket unless the user then explicitly asks to work it in this session.
 
 ---
 
 ## Phase 2: Dispatch Selected Issues (Parallel Model)
 
 This agent does **not** work the issues itself. Issues are worked in separate `claude` sessions — one per ticket, each in its own repo clone — so multiple can run in parallel without git branch conflicts. This session's job at Phase 2 is to **create per-ticket stubs and hand the user launcher commands**.
+
+**CRITICAL — do this every time, in order:**
+1. Run Step A (create stubs) then Step B (print the launcher block) for the selected tickets. This is MANDATORY and always comes first. Even for a single selected ticket, print its launcher line.
+2. Do NOT invoke `review-issue` or `work-on-mr` in THIS session. Selecting a ticket at Checkpoint 1 means "prepare it for a worker," NOT "work it here." Emitting the launcher line is the whole job.
+3. Only work a ticket inline (Step C) if the user, AFTER seeing the launcher lines, explicitly says to do it in this session (e.g. "work SCP-640 here", "do it in this session"). Absent that, stop after Step B.
 
 ### Step A: Create Per-Ticket Work-Log Stubs
 
