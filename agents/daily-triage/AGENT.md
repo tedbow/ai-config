@@ -23,13 +23,35 @@ You are triaging the user's daily Jira tickets from the configured project and a
 
 ## Critical Rules
 
-- **NEVER probe the environment** (no `which`, `jira version`, `glab version`, CLI detection, or any shell commands to discover what tools are installed). Use MCP tools for Jira. Use `do.php` for Drupal.org. Use `gh` for GitHub. Use `glab` for GitLab. These are always available — skip detection entirely.
+- **NEVER probe the environment** (no `which`, `jira version`, `glab version`, CLI detection, or any shell commands to discover what tools are installed). Use `do.php` for Drupal.org. Use `gh` for GitHub. Use `glab` for GitLab. These are always available — skip detection entirely.
+- **Jira ticket list is fetched by a committed script, NOT MCP.** Run `~/projects/ai-config/jira/fetch-sprint.sh` (Step 1). It returns clean pipe-delimited rows — do NOT dump MCP JSON and improvise a parser. MCP Jira tools are used only for the write/side actions later: remote links, comments, transitions.
+- **NEVER hand-write ad-hoc Python/jq to parse Jira JSON.** The fetch script already parses. If you need more fields, edit the script — keep parsing deterministic and committed, not improvised per run.
 - **Start immediately** with Step 0 below. No preamble, no setup checks.
+
+## Triage Folder Layout
+
+All triage state for a day lives in one folder: `~/triage/YYYY-MM-DD/`
+
+```
+~/triage/2026-07-15/
+  triage.md      # assessment (table, discrepancies, recommendations) — THIS agent writes it, once
+  scp-123.md     # per-ticket work log — the WORKER session for that ticket owns it, sole writer
+  scp-456.md
+```
+
+**Single-writer rule (this makes parallel work safe):**
+
+| File | Written by | Read by |
+|---|---|---|
+| `triage.md` | this triage session only | everyone |
+| `scp-NNN.md` | the one worker session on SCP-NNN | everyone |
+
+This agent writes `triage.md` and creates empty `scp-NNN.md` stubs for selected tickets. It NEVER writes a ticket's work log after that — worker sessions (running the `work-triage` skill) do. That is why multiple `claude` sessions can run in parallel without clobbering each other.
 
 ## Step 0: Check for Existing Triage File
 
 ```bash
-ls ~/triage/$(date +%Y-%m-%d).md 2>/dev/null
+ls ~/triage/$(date +%Y-%m-%d)/triage.md 2>/dev/null
 ```
 
 **If file exists**, use AskUserQuestion:
@@ -45,7 +67,7 @@ options:
     description: "Re-fetch only tickets assigned to you, merge with existing"
 ```
 
-- **"Use existing file"** → Read `~/triage/YYYY-MM-DD.md`, skip to CHECKPOINT 1 and present the cached assessment to the user
+- **"Use existing file"** → Read `~/triage/YYYY-MM-DD/triage.md`, skip to CHECKPOINT 1 and present the cached assessment to the user
 - **"Recheck everything"** → proceed with Phase 1, overwrite file at Checkpoint 1
 - **"Recheck assigned only"** → proceed with Phase 1 but limit issue fetching to assigned tickets, merge into existing file at Checkpoint 1
 
@@ -53,33 +75,33 @@ options:
 
 ## Phase 1: Autonomous Assessment
 
-### Step 1: Fetch Jira Tickets
+### Step 1: Fetch Jira Tickets (Deterministic Script)
 
-Fetch tickets directly using JQL (do NOT use the fetch-scp-tickets skill - call the API directly):
+Run the committed fetch script — ONE Bash call, no MCP, no parsing:
 
-```
-mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
-jql: project = SCP AND sprint in openSprints() ORDER BY priority DESC
-fields: ["summary", "description", "status", "issuetype", "priority", "created", "assignee"]
-maxResults: 25
+```bash
+~/projects/ai-config/jira/fetch-sprint.sh
 ```
 
-**IMPORTANT**: Make only ONE API call to get all tickets. Do not make additional calls per ticket.
+It fetches `project = SCP AND sprint in openSprints()` via the Jira REST API and prints one pipe-delimited row per ticket:
 
-### Step 2: Extract Drupal.org Issue Links (Two-Phase Approach)
+```
+KEY | STATUS | PRIORITY | TYPE | ASSIGNEE | WORK_LINK | SUMMARY
+```
 
-**Phase A: Extract from descriptions first (no API calls)**
+- **WORK_LINK** is already extracted + classified from the description: a Drupal.org issue URL, a GitLab `/-/work_items/` (or `/-/merge_requests/`) URL, or a GitHub `/pull/` URL. Empty when none found in the description.
+- Read these rows directly. Do NOT re-fetch, do NOT re-parse, do NOT call the MCP search tool.
+- Requires `$JIRA_API_TOKEN` in the environment. If the script prints `ERROR: JIRA_API_TOKEN not set`, tell the user to export it and stop.
 
-Parse the description field already returned for:
-- Drupal.org: `https://www.drupal.org/project/[^/]+/issues/(\d+)` or `https://drupal.org/i/(\d+)` or `#NNNNNNN:` pattern in summary
-- GitLab work_items: `https://[^/]+/[^/]+/[^/]+/-/work_items/(\d+)` → capture full URL
-- GitHub PR: `https://github.com/[^/]+/[^/]+/pull/(\d+)` → capture full URL
-- Jira smartlinks containing any of the above
+### Step 2: Fill Missing Work Links (Fallback Only)
 
-**Phase B: Fetch remote links ONLY for tickets missing a link**
+For rows where **WORK_LINK is empty AND the ticket is assigned to the user**, fetch remote links. Two equivalent options:
 
-For tickets where no Drupal.org/GitLab/GitHub link was found in the description AND are assigned to the user:
+```bash
+~/projects/ai-config/jira/get_link SCP-NNN
+```
+
+or the MCP tool if you prefer:
 
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
@@ -88,9 +110,9 @@ issueIdOrKey: {{JIRA_KEY}}
 ```
 
 **IMPORTANT**:
-- Only fetch remote links for tickets that need them (missing from description)
-- Prioritize user's assigned tickets
-- If you hit rate limits during this phase, stop and proceed with what you have
+- Only for rows with empty WORK_LINK — the script already resolved the rest.
+- Prioritize the user's assigned tickets; skip unassigned ones.
+- If you hit rate limits, stop and proceed with what you have.
 
 ### Step 3: Fetch Issue Information (Selective)
 
@@ -182,13 +204,13 @@ Display a summary table:
 
 ### Write Triage File
 
-Before presenting to user, write assessment to file:
+Before presenting to user, write the assessment to `triage.md`:
 
 ```bash
-mkdir -p ~/triage
+mkdir -p ~/triage/$(date +%Y-%m-%d)
 ```
 
-Write `~/triage/YYYY-MM-DD.md` (use actual date from system context):
+Write `~/triage/YYYY-MM-DD/triage.md` (use actual date from system context):
 
 ```markdown
 # Daily Triage — YYYY-MM-DD
@@ -207,14 +229,11 @@ Write `~/triage/YYYY-MM-DD.md` (use actual date from system context):
 
 ## Work Log
 
-[one section per ticket:]
-### SCP-XXX
-- Status: pending
-- Issue: [issue identifier]
-- Role: [Contributor/Reviewer]
+Per-ticket work logs live in this folder as `scp-NNN.md`, written by worker sessions.
+Run `ls ~/triage/YYYY-MM-DD/` for the day; read `scp-*.md` for per-ticket status.
 ```
 
-Use the Bash tool to write this file. Rewrite full file (not append) on every update.
+`triage.md` holds the assessment ONLY. It does NOT hold per-ticket work-log state — that moved to per-ticket files so parallel worker sessions don't race. This agent rewrites `triage.md` in full whenever the assessment changes, but never writes `scp-NNN.md` after creating the stub (next step).
 
 ### Present to User
 
@@ -236,49 +255,55 @@ questions:
 
 ---
 
-## Phase 2: Work on Selected Issues
+## Phase 2: Dispatch Selected Issues (Parallel Model)
 
-**IMPORTANT: Process issues SEQUENTIALLY, not in parallel.** Working on multiple MRs simultaneously would cause git branch conflicts.
+This agent does **not** work the issues itself. Issues are worked in separate `claude` sessions — one per ticket, each in its own repo clone — so multiple can run in parallel without git branch conflicts. This session's job at Phase 2 is to **create per-ticket stubs and hand the user launcher commands**.
 
-### For Each Selected Issue:
+### Step A: Create Per-Ticket Work-Log Stubs
 
-**Update triage file Work Log to `in-progress` before starting each issue.**
+For each selected ticket, create `~/triage/YYYY-MM-DD/scp-NNN.md` (lowercase key) IF it does not already exist:
 
-#### If Role is REVIEWER:
+```markdown
+# SCP-NNN
 
-1. Invoke the review-issue skill:
-   ```
-   Skill: review-issue
-   args: {{issue_url_or_number}}
-   ```
+- Jira: SCP-NNN
+- Issue: [issue url or number]
+- Role: [Contributor/Reviewer]
+- Status: pending
 
-2. Follow the review-issue workflow which will:
-   - Fetch issue and MR details
-   - Analyze code changes
-   - Check CI status
-   - Generate review summary
-   - Offer to post review
+## Log
+- stub created by triage session
 
-3. After completing: update Work Log to `review-posted` (or `done` if no post requested).
+## Notes
+```
 
-#### If Role is CONTRIBUTOR:
+Do NOT overwrite an existing `scp-NNN.md` — a worker may already be running it.
 
-1. Invoke the work-on-mr skill:
-   ```
-   Skill: work-on-mr
-   args: {{issue_url_or_number}}
-   ```
+### Step B: Emit Launcher Commands
 
-2. Follow the work-on-mr workflow which will:
-   - Checkout the MR branch
-   - Understand the issue context
-   - Ask what changes are needed
-   - Implement changes
-   - Run code quality checks
+Print one copy-paste line per selected ticket. The user opens a new terminal, `cd`s into any free clone (Drupal or SaaS), and pastes the command:
 
-3. After completing: update Work Log to `pushed` or `done`.
+```markdown
+## Launch parallel workers
 
-### Work Log Status Values
+Open a terminal per ticket, cd into a free clone, paste:
+
+- SCP-123 (Contributor) → `claude "/work-triage SCP-123"`
+- SCP-456 (Reviewer)    → `claude "/work-triage SCP-456"`
+```
+
+Each worker session runs the `work-triage` skill, which reads `triage.md`, checks out the branch in the current clone, and works the one ticket — writing only its own `scp-NNN.md`.
+
+### Step C: (Optional) Work One Inline
+
+If the user prefers to work a single ticket in THIS session instead of spawning a worker, invoke the skill directly here:
+
+- Reviewer → `Skill: review-issue` with the issue url/number
+- Contributor → `Skill: work-on-mr` with the issue url/number
+
+Then update that ticket's `scp-NNN.md` as you go (this session becomes that ticket's sole writer). Only do this for ONE ticket — for multiple, use the launcher lines so each gets its own clone.
+
+### Work Log Status Values (written by worker sessions, in `scp-NNN.md`)
 
 | Event | Status |
 |---|---|
@@ -289,7 +314,7 @@ questions:
 | Blocked | `blocked — [reason]` |
 | Complete | `done` |
 
-Rewrite the full triage file on each update.
+Each worker rewrites its own `scp-NNN.md` in full on update. This triage session never writes those files after the stub.
 
 ---
 

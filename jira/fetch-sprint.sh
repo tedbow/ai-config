@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# Deterministic Jira sprint fetch for the Daily Triage agent.
+# Hits the Jira Cloud REST API directly (no MCP, no ad-hoc parsing) and prints
+# one clean pipe-delimited row per ticket. The triage agent calls this instead
+# of dumping MCP JSON and improvising a parser each run.
+#
+# Requires: $JIRA_API_TOKEN in the environment, plus curl + jq.
+#
+# Output (one line per issue), pipe-delimited:
+#   KEY | STATUS | PRIORITY | TYPE | ASSIGNEE | WORK_LINK | SUMMARY
+#
+# WORK_LINK is the first Drupal.org / GitLab work_items / GitHub PR URL found in
+# the description (ADF link marks + plaintext), classified; empty if none found.
+# When empty, the agent should fall back to getJiraIssueRemoteIssueLinks / get_link.
+
+set -euo pipefail
+
+JIRA_DOMAIN="acquia.atlassian.net"
+JIRA_EMAIL="ted.bowman@acquia.com"
+PROJECT="SCP"
+JQL="project = ${PROJECT} AND sprint in openSprints() ORDER BY priority DESC, updated DESC"
+MAX_RESULTS="${1:-25}"
+
+if [ -z "${JIRA_API_TOKEN:-}" ]; then
+  echo "ERROR: JIRA_API_TOKEN not set" >&2
+  exit 1
+fi
+
+AUTH=$(printf '%s' "${JIRA_EMAIL}:${JIRA_API_TOKEN}" | base64)
+
+RESPONSE=$(curl -s -G \
+  -H "Authorization: Basic ${AUTH}" \
+  -H "Accept: application/json" \
+  --data-urlencode "jql=${JQL}" \
+  --data-urlencode "maxResults=${MAX_RESULTS}" \
+  --data-urlencode "fields=summary,status,priority,issuetype,assignee,description" \
+  "https://${JIRA_DOMAIN}/rest/api/3/search/jql")
+
+# Surface API errors instead of emitting garbage rows.
+if echo "$RESPONSE" | jq -e '.errorMessages // empty | length > 0' >/dev/null 2>&1; then
+  echo "ERROR: $(echo "$RESPONSE" | jq -r '.errorMessages | join("; ")')" >&2
+  exit 1
+fi
+
+echo "$RESPONSE" | jq -r '
+  # collect every candidate URL in a description: ADF link-mark hrefs + any
+  # https:// token sitting in plaintext text nodes.
+  def urls:
+    [ .. | .attrs?.href? // empty ]
+    + ( [ .. | .text? // empty ] | map( scan("https?://[^ \t\n\"<>)]+") ) )
+    | flatten | unique;
+
+  # pick the first URL that looks like actual issue/MR/PR work, and classify it.
+  def worklink($u):
+    ( $u | map(select(test("drupal.org/i/[0-9]+|drupal.org/project/[^ ]+/issues/[0-9]+"))) | .[0] ) as $d
+    | ( $u | map(select(test("/-/work_items/[0-9]+|/-/merge_requests/[0-9]+"))) | .[0] ) as $g
+    | ( $u | map(select(test("github.com/[^ ]+/pull/[0-9]+"))) | .[0] ) as $h
+    | ( $d // $g // $h // "" );
+
+  .issues[]
+  | ( .fields.description // {} | urls ) as $u
+  | [
+      .key,
+      (.fields.status.name // ""),
+      (.fields.priority.name // ""),
+      (.fields.issuetype.name // ""),
+      (.fields.assignee.displayName // "Unassigned"),
+      worklink($u),
+      ((.fields.summary // "") | gsub("[|\n]"; " "))
+    ]
+  | join(" | ")
+'
