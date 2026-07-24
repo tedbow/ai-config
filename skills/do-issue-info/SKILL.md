@@ -29,9 +29,11 @@ Extract from URL:
 **GitLab issue** — input matches:
 ```
 https://<host>/<namespace>/<project>/-/work_items/<iid>
+https://<host>/<namespace>/<project>/-/issues/<iid>
 ```
 Examples:
 - `https://git.drupalcode.org/project/canvas/-/work_items/3591459`
+- `https://git.drupalcode.org/project/canvas/-/issues/3591459`
 - `https://gitlab.com/some-org/some-project/-/work_items/456`
 
 Extract from URL:
@@ -39,7 +41,12 @@ Extract from URL:
 - `project_path` (e.g., `project/canvas`) — URL-encode slashes as `%2F` for API calls
 - `issue_iid` (e.g., `3591459`)
 
-**Drupal.org issue** — input is a plain number or `https://drupal.org/...` URL. Extract the issue number.
+**Drupal.org issue** — input matches one of:
+- a plain number (e.g., `3503194`)
+- `https://www.drupal.org/project/<project>/issues/<number>` (`www.` optional)
+- `https://drupal.org/i/<number>` (`www.` optional)
+
+Extract the issue number.
 
 **If no input provided:**
 - Get current git branch: `git rev-parse --abbrev-ref HEAD`
@@ -68,6 +75,12 @@ gh api repos/{{owner}}/{{repo}}/pulls/{{pr_number}}/comments
 **If there are errors fetching PR details:** stop immediately and report the error.
 
 #### GitLab path
+
+For `git.drupalcode.org` hosts, prefer `do.php` — it accepts the issue URL directly and produces the same markdown format as the Drupal.org path:
+```bash
+do.php info {{issue_url}} --format=md --comments --mrs
+```
+For other hosts (e.g. `gitlab.com`), use `glab` as below.
 
 Fetch issue metadata:
 ```bash

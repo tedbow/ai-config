@@ -89,7 +89,7 @@ It fetches `project = SCP AND sprint in openSprints()` via the Jira REST API and
 KEY | STATUS | PRIORITY | TYPE | ASSIGNEE | WORK_LINK | SUMMARY
 ```
 
-- **WORK_LINK** is already extracted + classified from the description: a Drupal.org issue URL, a GitLab `/-/work_items/` (or `/-/merge_requests/`) URL, or a GitHub `/pull/` URL. Empty when none found in the description.
+- **WORK_LINK** is already extracted + classified from the description: a Drupal.org issue URL, a GitLab `/-/work_items/`, `/-/issues/`, or `/-/merge_requests/` URL, or a GitHub `/pull/` URL. Empty when none found in the description.
 - Read these rows directly. Do NOT re-fetch, do NOT re-parse, do NOT call the MCP search tool.
 - Requires `$JIRA_API_TOKEN` in the environment. If the script prints `ERROR: JIRA_API_TOKEN not set`, tell the user to export it and stop.
 
@@ -127,7 +127,11 @@ Use the appropriate command based on issue type:
 do.php info {{issue_number}} --format=md --comments --mrs
 ```
 
-**GitLab work_items:**
+**GitLab issue (`/-/work_items/` or `/-/issues/` URL):** for `git.drupalcode.org` hosts, prefer `do.php` (same markdown output as Drupal.org):
+```bash
+do.php info {{issue_url}} --format=md --comments --mrs
+```
+For other hosts:
 ```bash
 glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}
 ```

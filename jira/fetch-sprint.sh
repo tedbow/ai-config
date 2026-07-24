@@ -54,7 +54,7 @@ echo "$RESPONSE" | jq -r '
   # pick the first URL that looks like actual issue/MR/PR work, and classify it.
   def worklink($u):
     ( $u | map(select(test("drupal.org/i/[0-9]+|drupal.org/project/[^ ]+/issues/[0-9]+"))) | .[0] ) as $d
-    | ( $u | map(select(test("/-/work_items/[0-9]+|/-/merge_requests/[0-9]+"))) | .[0] ) as $g
+    | ( $u | map(select(test("/-/work_items/[0-9]+|/-/issues/[0-9]+|/-/merge_requests/[0-9]+"))) | .[0] ) as $g
     | ( $u | map(select(test("github.com/[^ ]+/pull/[0-9]+"))) | .[0] ) as $h
     | ( $d // $g // $h // "" );
 

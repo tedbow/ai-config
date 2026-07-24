@@ -4,7 +4,7 @@ description: This skill should be used when the user asks to "work on an MR", "w
 version: 2.1.0
 args:
   - name: issue_ref
-    description: The Drupal.org issue number, full GitLab work_items URL (e.g. https://git.drupalcode.org/project/canvas/-/work_items/3591459), or full GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)
+    description: The Drupal.org issue number or URL (https://www.drupal.org/project/<p>/issues/<n> or https://drupal.org/i/<n>), full GitLab issue URL (e.g. https://git.drupalcode.org/project/canvas/-/work_items/3591459 or .../-/issues/3591459), or full GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)
     required: true
 ---
 
@@ -21,10 +21,10 @@ You are helping work on a Drupal.org issue, GitLab issue, or GitHub PR by checki
 **GitHub PR** — input matches `https://github.com/<owner>/<repo>/pull/<number>`
 - Extract: `owner`, `repo`, `pr_number`
 
-**GitLab issue** — input matches `https://<host>/<namespace>/<project>/-/work_items/<iid>`
+**GitLab issue** — input matches `https://<host>/<namespace>/<project>/-/work_items/<iid>` or `https://<host>/<namespace>/<project>/-/issues/<iid>`
 - Extract: `host`, `project_path`, `issue_iid`
 
-**Drupal.org issue** — plain number or `https://drupal.org/...` URL
+**Drupal.org issue** — plain number, `https://www.drupal.org/project/<project>/issues/<number>`, or `https://drupal.org/i/<number>` (`www.` optional)
 
 Get full issue details using the "Get Issue Information" skill (do-issue-info), passing the issue reference.
 
@@ -53,7 +53,7 @@ gh pr checkout {{pr_url}}
 
 #### GitLab path
 
-From within the project repo directory:
+For `git.drupalcode.org` hosts, `do.php mr-checkout {{issue_url}}` also works (accepts the issue URL directly). Otherwise, from within the project repo directory:
 ```bash
 GITLAB_HOST={{host}} glab mr checkout {{mr_iid}}
 ```
@@ -63,6 +63,7 @@ GITLAB_HOST={{host}} glab mr checkout {{mr_iid}}
 ```bash
 do.php mr-checkout {{issue_number}}
 ```
+(`do.php mr-checkout` also accepts full issue URLs, both drupal.org and git.drupalcode.org forms.)
 
 **Wait for the checkout to complete successfully** before proceeding.
 

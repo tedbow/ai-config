@@ -23,14 +23,19 @@ Extract: `owner`, `repo`, `pr_number`.
 **GitLab issue** — input matches:
 ```
 https://<host>/<namespace>/<project>/-/work_items/<iid>
+https://<host>/<namespace>/<project>/-/issues/<iid>
 ```
 Examples:
 - `https://git.drupalcode.org/project/canvas/-/work_items/3591459`
+- `https://git.drupalcode.org/project/canvas/-/issues/3591459`
 - `https://gitlab.com/some-org/some-project/-/work_items/456`
 
 Extract: `host`, `project_path` (e.g., `project/canvas`), `issue_iid`.
 
-**Drupal.org issue** — plain number or `https://drupal.org/...` URL.
+**Drupal.org issue** — one of:
+- plain number (e.g., `3503194`)
+- `https://www.drupal.org/project/<project>/issues/<number>` (`www.` optional)
+- `https://drupal.org/i/<number>` (`www.` optional)
 
 **If nothing provided:**
 - Get current git branch: `git rev-parse --abbrev-ref HEAD`
@@ -59,6 +64,8 @@ Extract:
 - Comments thread for discussion context
 
 #### GitLab path
+
+For `git.drupalcode.org` hosts, prefer `do.php info {{issue_url}} --format=md --comments --mrs` (same output as the Drupal.org path). For other hosts, use `glab`:
 
 ```bash
 glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}

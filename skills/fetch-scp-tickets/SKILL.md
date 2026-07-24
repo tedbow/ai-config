@@ -22,23 +22,26 @@ maxResults: 25
 
 **Note**: Removed `assignee = currentUser()` to get all sprint tickets - filter by assignee when displaying.
 
-## Step 2: Extract Drupal.org Links (Two-Phase Approach)
+## Step 2: Extract Issue Links (Two-Phase Approach)
 
 ### Phase A: Extract from descriptions (no extra API calls)
 
-For each ticket, extract Drupal.org issue references from the **description field**:
+For each ticket, extract issue references from the **description field**:
 
 1. **URL patterns to match**:
    - `https://www.drupal.org/project/*/issues/NNNNNNN` → extract issue number
    - `https://drupal.org/i/NNNNNNN` → extract issue number
-   - Jira smartlinks containing drupal.org URLs
+   - `https://git.drupalcode.org/<namespace>/<project>/-/work_items/NNNNNNN` → GitLab issue URL
+   - `https://git.drupalcode.org/<namespace>/<project>/-/issues/NNNNNNN` → GitLab issue URL
+   - `https://git.drupalcode.org/<namespace>/<project>/-/merge_requests/NNN` → GitLab MR URL
+   - Jira smartlinks containing any of the above URLs
 
 2. **Summary patterns**:
-   - `#NNNNNNN:` at start of summary (common pattern)
+   - `#NNNNNNN:` at start of summary (common pattern; number alone does not identify the source — prefer a URL from the description if present)
 
 ### Phase B: Fetch remote links for tickets missing a link
 
-For tickets where **no Drupal.org link was found** in Phase A:
+For tickets where **no issue link was found** in Phase A:
 
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
@@ -65,19 +68,21 @@ Present tickets in a triage-friendly format:
 ### By Status
 
 #### Needs Action (In Progress / Ready for Dev)
-| Ticket | Priority | Summary | Drupal.org |
-|--------|----------|---------|------------|
+| Ticket | Priority | Summary | Issue |
+|--------|----------|---------|-------|
 | SCP-XXX | High | [summary] | #NNNNNNN |
 
 #### In Review
-| Ticket | Priority | Summary | Drupal.org |
-|--------|----------|---------|------------|
-| SCP-YYY | Medium | [summary] | #NNNNNNN |
+| Ticket | Priority | Summary | Issue |
+|--------|----------|---------|-------|
+| SCP-YYY | Medium | [summary] | [work_items/NNNNNNN](url) |
 
 #### Blocked / Waiting
-| Ticket | Priority | Summary | Drupal.org |
-|--------|----------|---------|------------|
+| Ticket | Priority | Summary | Issue |
+|--------|----------|---------|-------|
 | SCP-ZZZ | Low | [summary] | - |
+
+The **Issue** column shows `#NNNNNNN` linked to `https://drupal.org/i/NNNNNNN` for Drupal.org issues, or a short markdown link to the GitLab issue/MR URL for GitLab items.
 
 #### Other
 | Ticket | Status | Priority | Summary |
