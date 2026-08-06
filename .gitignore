@@ -4,3 +4,4 @@
 .playwright
 skills/playwright-cli
 .DS_Store
+jira/*.json
