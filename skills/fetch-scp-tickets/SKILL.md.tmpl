@@ -14,8 +14,8 @@ Use the following JQL to get tickets from the board's active sprint:
 
 ```
 mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql
-cloudId: {{cloud_id}}
-jql: project = {{project}} AND sprint in openSprints() ORDER BY priority DESC, updated DESC
+cloudId: __JIRA_CLOUD_ID__
+jql: project = __JIRA_PROJECT__ AND sprint in openSprints() ORDER BY priority DESC, updated DESC
 fields: ["summary", "description", "status", "issuetype", "priority", "created", "updated", "labels", "assignee"]
 maxResults: 25
 ```
@@ -45,7 +45,7 @@ For tickets where **no issue link was found** in Phase A:
 
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
-cloudId: {{cloud_id}}
+cloudId: __JIRA_CLOUD_ID__
 issueIdOrKey: {{JIRA_KEY}}
 ```
 
@@ -107,13 +107,13 @@ Group tickets by these status categories:
 If the user asks for "all sprint tickets" (not just assigned), use:
 
 ```
-jql: project = {{project}} AND sprint in openSprints() ORDER BY assignee, priority DESC
+jql: project = __JIRA_PROJECT__ AND sprint in openSprints() ORDER BY assignee, priority DESC
 ```
 
 ## Error Handling
 
 - If no tickets found: Report "No tickets in current sprint"
-- If API error: Provide direct link to board using `{{board_url}}` from configuration
+- If API error: Provide direct link to board using `__JIRA_BOARD_URL__` from configuration
 
 ## Rate Limit Handling
 
@@ -133,7 +133,7 @@ The Jira API is rate limited. Here's what I found before the limit:
 [any tickets already fetched]
 
 **Options:**
-1. View your board directly: {{board_url}}
+1. View your board directly: __JIRA_BOARD_URL__
 2. Provide specific ticket keys (e.g., SCP-123, SCP-456) for me to look up
 3. Try again in a few minutes
 ```

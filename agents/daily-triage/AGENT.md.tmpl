@@ -83,7 +83,7 @@ Run the committed fetch script — ONE Bash call, no MCP, no parsing:
 ~/projects/ai-config/jira/fetch-sprint.sh
 ```
 
-It fetches `project = SCP AND sprint in openSprints()` via the Jira REST API and prints one pipe-delimited row per ticket:
+It fetches `project = __JIRA_PROJECT__ AND sprint in openSprints()` via the Jira REST API and prints one pipe-delimited row per ticket:
 
 ```
 KEY | STATUS | PRIORITY | TYPE | ASSIGNEE | WORK_LINK | SUMMARY
@@ -105,7 +105,7 @@ or the MCP tool if you prefer:
 
 ```
 mcp__plugin_atlassian_atlassian__getJiraIssueRemoteIssueLinks
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: __JIRA_CLOUD_ID__
 issueIdOrKey: {{JIRA_KEY}}
 ```
 
@@ -206,9 +206,9 @@ Display a summary table, then a launcher block:
 3. **SCP-ZZZ**: Address reviewer feedback
 
 ### Links
-- **SCP-XXX** — Jira https://acquia.atlassian.net/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
-- **SCP-YYY** — Jira https://acquia.atlassian.net/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN
-- **SCP-ZZZ** — Jira https://acquia.atlassian.net/browse/SCP-ZZZ · MR https://git.drupalcode.org/project/canvas/-/work_items/NNNNNNN
+- **SCP-XXX** — Jira https://__JIRA_DOMAIN__/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
+- **SCP-YYY** — Jira https://__JIRA_DOMAIN__/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN
+- **SCP-ZZZ** — Jira https://__JIRA_DOMAIN__/browse/SCP-ZZZ · MR https://git.drupalcode.org/project/canvas/-/work_items/NNNNNNN
 
 ### Launch Workers — copy/paste into a new terminal (one per free clone)
 - SCP-XXX (Contributor) → `claude "/work-triage SCP-XXX"`
@@ -217,7 +217,7 @@ Display a summary table, then a launcher block:
 ```
 
 **Links section rules:**
-- One line per ticket. Always include the Jira URL (`https://acquia.atlassian.net/browse/{{KEY}}`).
+- One line per ticket. Always include the Jira URL (`https://__JIRA_DOMAIN__/browse/{{KEY}}`).
 - Include the full **WORK_LINK** URL from `fetch-sprint.sh` (Drupal.org issue / GitLab work_item / GitHub PR).
 - If a ticket has **multiple** related MRs/PRs (e.g. from the `get_link` fallback — SCP-640 had two PRs), list **all** of them, separated by ` · `. Do not collapse to one.
 - Use full clickable URLs, not short `org/repo#NNN` labels — the table column can stay short, but this section must have real URLs.
@@ -251,8 +251,8 @@ Write `~/triage/YYYY-MM-DD/triage.md` (use actual date from system context):
 
 ## Links
 [one line per ticket — Jira URL + all related issue/MR/PR URLs, ` · ` separated:]
-- **SCP-XXX** — Jira https://acquia.atlassian.net/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
-- **SCP-YYY** — Jira https://acquia.atlassian.net/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN · PR https://github.com/org/repo/pull/MMM
+- **SCP-XXX** — Jira https://__JIRA_DOMAIN__/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
+- **SCP-YYY** — Jira https://__JIRA_DOMAIN__/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN · PR https://github.com/org/repo/pull/MMM
 
 ## Launch Workers
 [one line per assigned ticket:]
@@ -387,7 +387,7 @@ Use Playwright to navigate and post comment as defined in review-issue skill.
 **Add Comment:**
 ```
 mcp__plugin_atlassian_atlassian__addCommentToJiraIssue
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: __JIRA_CLOUD_ID__
 issueIdOrKey: {{JIRA_KEY}}
 commentBody: {{comment_text}}
 ```
@@ -396,14 +396,14 @@ commentBody: {{comment_text}}
 First, get available transitions:
 ```
 mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: __JIRA_CLOUD_ID__
 issueIdOrKey: {{JIRA_KEY}}
 ```
 
 Then transition:
 ```
 mcp__plugin_atlassian_atlassian__transitionJiraIssue
-cloudId: e064d7a1-07ac-4eb9-ace5-67fc64ac5826
+cloudId: __JIRA_CLOUD_ID__
 issueIdOrKey: {{JIRA_KEY}}
 transition: { "id": "{{transition_id}}" }
 ```
@@ -415,7 +415,7 @@ transition: { "id": "{{transition_id}}" }
 - **Jira API rate limit (429)**:
   - Do NOT retry immediately
   - Present any data already retrieved
-  - Provide board URL: `https://acquia.atlassian.net/jira/software/c/projects/SCP/boards/5081`
+  - Provide board URL: `__JIRA_BOARD_URL__`
   - Offer to accept manual ticket keys from user
 - **Jira API errors (other)**: Report error, provide manual URL to Jira board
 - **Issue fetch fails (Drupal.org/GitLab/GitHub)**: Note the failure, continue with other tickets

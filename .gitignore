@@ -5,3 +5,10 @@
 skills/playwright-cli
 .DS_Store
 jira/*.json
+
+# Generated from .tmpl files by build.sh — do not edit directly
+.env
+agents/daily-triage/AGENT.md
+skills/fetch-scp-tickets/SKILL.md
+jira/fetch-sprint.sh
+jira/get_link

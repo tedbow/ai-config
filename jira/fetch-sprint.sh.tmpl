@@ -16,9 +16,9 @@
 
 set -euo pipefail
 
-JIRA_DOMAIN="acquia.atlassian.net"
-JIRA_EMAIL="ted.bowman@acquia.com"
-PROJECT="SCP"
+JIRA_DOMAIN="__JIRA_DOMAIN__"
+JIRA_EMAIL="__JIRA_EMAIL__"
+PROJECT="__JIRA_PROJECT__"
 JQL="project = ${PROJECT} AND sprint in openSprints() ORDER BY priority DESC, updated DESC"
 MAX_RESULTS="${1:-25}"
 

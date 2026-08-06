@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Configuration (Assumes you have these from your jira-cli setup)
-JIRA_DOMAIN="acquia.atlassian.net"
+JIRA_DOMAIN="__JIRA_DOMAIN__"
 # Base64 encode your email:api_token for the curl call
-AUTH_HEADER=$(echo -n "ted.bowman@acquia.com:$JIRA_API_TOKEN" | base64)
+AUTH_HEADER=$(echo -n "__JIRA_EMAIL__:$JIRA_API_TOKEN" | base64)
 
 get_web_links() {
     ISSUE_KEY=$1
