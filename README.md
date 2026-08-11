@@ -15,17 +15,21 @@ ln -s /path/to/ai-config/agents ~/.claude/agents
 
 ### 2. Configure Atlassian/Jira Settings
 
-Some agents and skills use `{{cloud_id}}`, `{{project}}`, `{{board_id}}`, and `{{board_url}}` placeholders.
+Some agents and skills need your Jira cloud ID, project key, etc. These are stored in a gitignored `.env` file and injected into templates via a build step.
 
-Add your values to `~/.claude/CLAUDE.md`:
-
-```markdown
-## Atlassian Config
-- cloud_id: YOUR_CLOUD_ID
-- project: YOUR_PROJECT_KEY
-- board_id: YOUR_BOARD_ID
-- board_url: https://YOUR_ORG.atlassian.net/jira/software/c/projects/YOUR_PROJECT/boards/YOUR_BOARD_ID
+```bash
+cp .env.example .env
+# Edit .env with your values
+./build.sh
 ```
+
+This generates the following files from their `.tmpl` sources:
+- `agents/daily-triage/AGENT.md`
+- `skills/fetch-scp-tickets/SKILL.md`
+- `jira/fetch-sprint.sh`
+- `jira/get_link`
+
+Re-run `./build.sh` after editing `.env` or any `.tmpl` file. Generated files are gitignored — never edit them directly.
 
 To find your Cloud ID, use `mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources`.
 
