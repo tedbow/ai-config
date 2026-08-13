@@ -22,6 +22,8 @@ cp .env.example .env
 - `agents/daily-triage/AGENT.md` ← `AGENT.md.tmpl`
 - `skills/fetch-scp-tickets/SKILL.md` ← `SKILL.md.tmpl`
 - `jira/fetch-sprint.sh` ← `fetch-sprint.sh.tmpl`
-- `jira/get_link` ← `get_link.tmpl`
 
 These are gitignored. The `.tmpl` files are the source of truth.
+
+`scripts/*.sh` are committed directly (not templated) — they source `.env`
+at runtime via `scripts/lib.sh` instead.

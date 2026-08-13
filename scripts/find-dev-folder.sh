@@ -18,15 +18,9 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${REPO_ROOT}/.env"
-
-if [ ! -f "$ENV_FILE" ]; then
-  echo "ERROR: $ENV_FILE not found. Copy .env.example to .env and fill in values." >&2
-  exit 1
-fi
-# shellcheck disable=SC1090
-source "$ENV_FILE"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib.sh"
 
 LIST_ONLY=false
 if [ "${1:-}" == "--list" ]; then

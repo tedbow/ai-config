@@ -28,8 +28,6 @@ find . -name '*.tmpl' | while read -r tmpl; do
   sed "$SED_EXPR" "$tmpl" > "$out"
   # Make shell scripts executable
   [[ "$out" == *.sh ]] && chmod +x "$out"
-  # Make extensionless scripts in jira/ executable
-  [[ "$out" == ./jira/* && "$out" != *.* ]] && chmod +x "$out"
   echo "  generated: $out"
 done
 

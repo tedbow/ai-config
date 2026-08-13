@@ -11,4 +11,3 @@ jira/*.json
 agents/daily-triage/AGENT.md
 skills/fetch-scp-tickets/SKILL.md
 jira/fetch-sprint.sh
-jira/get_link

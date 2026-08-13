@@ -58,7 +58,7 @@ still found:
    URL matching the patterns above (same two-phase approach as
    `skills/fetch-scp-tickets`: check the description text/links first).
 2. If nothing found in the description, fall back to remote links: run
-   `jira/get_link <KEY>` (from the repo root) or call the
+   `scripts/get_link.sh <KEY>` (from the repo root) or call the
    `getJiraIssueRemoteIssueLinks` MCP tool, and scan those URLs the same way.
 3. If a linked issue number is found, add it as a second term.
 4. If no linked issue can be found, proceed with just the Jira key as the

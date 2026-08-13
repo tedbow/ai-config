@@ -27,7 +27,6 @@ This generates the following files from their `.tmpl` sources:
 - `agents/daily-triage/AGENT.md`
 - `skills/fetch-scp-tickets/SKILL.md`
 - `jira/fetch-sprint.sh`
-- `jira/get_link`
 
 Re-run `./build.sh` after editing `.env` or any `.tmpl` file. Generated files are gitignored — never edit them directly.
 
