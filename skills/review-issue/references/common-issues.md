@@ -433,20 +433,4 @@ class MyService {
 }
 ```
 
-## Best Practice Checklist
-
-When reviewing, watch for:
-
-- [ ] Are all user inputs validated and sanitized?
-- [ ] Are all database queries using proper APIs?
-- [ ] Are all services properly injected?
-- [ ] Are all configuration values in config files, not hardcoded?
-- [ ] Are all user-facing strings translatable?
-- [ ] Are all entities loaded using entity API, not direct queries?
-- [ ] Are all access checks present?
-- [ ] Are all cache metadata tags, contexts, and max-age set?
-- [ ] Are all tests covering edge cases?
-- [ ] Are all schema changes accompanied by update hooks?
-- [ ] Are all new configuration entities accompanied by schema definitions?
-- [ ] Are all deprecated APIs avoided?
-- [ ] Are all performance-critical operations optimized?
+For the full review checklist (architecture, security, testing, docs, DB/schema, config, API/BC, performance, accessibility, i18n), see `review-guidelines.md` — this file stays the code-example catalog, that one holds the checklist.
