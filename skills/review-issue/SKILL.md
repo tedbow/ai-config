@@ -230,25 +230,29 @@ No browser automation needed.
 
 #### GitLab path
 
-Since pipeline data is not available via the GitLab API for git.drupalcode.org, use browser automation to check CI status:
+Pipeline status is available via `glab ci status` (works anonymously on git.drupalcode.org). From within the checked-out repo (step 4 already checked out the MR branch):
 
-**Steps:**
-1. Open a browser and navigate to the MR page: `{{mr_data.web_url}}`
-2. Get a snapshot/state of the page
-3. Parse the page for CI indicators:
-   - Look for pipeline status: "Pipeline #XXX passed", "failed", "running"
-   - Check for CI badges or pipeline indicators
-   - Note any failed jobs or error messages
-   - Identify if tests are still running
+```bash
+GITLAB_HOST={{host}} glab ci status --output json
+```
+
+Or, without relying on the local checkout:
+```bash
+GITLAB_HOST={{host}} glab ci status --repo {{project_path}} --branch={{source_branch}} --output json
+```
+
+Extract:
+- Overall pipeline status (`success`/`failed`/`running`/etc.)
+- Failed job names and their `web_url`s
 
 **Handle failures gracefully:**
-- If browser automation fails or page structure is unclear, fall back to manual check
+- If `glab ci status` errors (e.g. no pipeline found) or auth fails, fall back to manual check
 - Provide URL: `{{mr_data.web_url}}/-/pipelines`
 - Note: "Unable to automatically check CI status, please verify manually"
 
 #### Drupal.org path
 
-Same browser automation approach as GitLab path above.
+Same `glab ci status` approach as GitLab path above.
 
 ### 7. Generate Review Summary
 
@@ -287,7 +291,7 @@ Display a comprehensive review summary in the terminal:
 - {{list of concerns from discussion}}
 
 ### GitLab CI Status
-{{pipeline status from Playwright check}}
+{{pipeline status from glab ci status}}
 
 - Pipeline: {{status}}
 - Failed jobs: {{if any}}
