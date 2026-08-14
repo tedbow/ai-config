@@ -36,7 +36,8 @@ To find your Cloud ID, use `mcp__plugin_atlassian_atlassian__getAccessibleAtlass
 
 Some skills require both CLIs in your PATH.
 
+- `drupalorg`: https://github.com/mglaman/drupalorg-cli — used for issue/comment fetching
+  (`drupalorg issue:show`) and MR pipeline status/logs (`drupalorg mr:status`, `drupalorg
+  mr:logs`) once you know an MR's iid.
 - `do.php`: https://github.com/tedbow/drupal-scripts — still used for MR discovery on classic
   Drupal.org issues (`do.php info --mrs`, `do.php gitlab:mrinfo`, `do.php mr-checkout`).
-- `drupalorg`: the Drupal.org CLI — used for issue/comment fetching (`drupalorg issue:show`) and
-  MR pipeline status/logs (`drupalorg mr:status`, `drupalorg mr:logs`) once you know an MR's iid.
