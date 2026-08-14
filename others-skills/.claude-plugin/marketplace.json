@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "others-skills",
+  "description": "Local marketplace for skills borrowed from other developers.",
+  "owner": {
+    "name": "Ted Bowman"
+  },
+  "plugins": [
+    {
+      "name": "borrowed",
+      "description": "Skills copied in from other developers' repos.",
+      "source": "./plugins/borrowed",
+      "category": "productivity"
+    }
+  ]
+}

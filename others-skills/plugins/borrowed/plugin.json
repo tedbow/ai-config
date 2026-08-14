@@ -1,0 +1,9 @@
+{
+  "name": "borrowed",
+  "description": "Skills copied in from other developers' repos.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Ted Bowman"
+  },
+  "skills": "./skills"
+}
