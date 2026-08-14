@@ -1,7 +1,7 @@
 ---
 name: Issue Review
 description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "review a gitlab issue", "review a github pr", "check issue status", "analyze a merge request", or wants to examine a Drupal.org issue, GitLab issue, or GitHub PR's code changes, discussion, and CI status.
-version: 2.1.0
+version: 2.2.0
 ---
 
 # Issue Review Skill
@@ -65,7 +65,7 @@ Extract:
 
 #### GitLab path
 
-For `git.drupalcode.org` hosts, prefer `do.php info {{issue_url}} --format=md --comments --mrs` (same output as the Drupal.org path). For other hosts, use `glab`:
+For `git.drupalcode.org` hosts, prefer `drupalorg issue:show {{issue_url}} --format=llm --with-comments`. For other hosts, use `glab`:
 
 ```bash
 glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}
@@ -84,10 +84,10 @@ Extract:
 #### Drupal.org path
 
 ```bash
-do.php info {{issue_number}} --format=md --comments --mrs
+drupalorg issue:show {{issue_number}} --format=llm --with-comments
 ```
 
-Parse the markdown output to extract:
+Parse the output to extract:
 - **Issue metadata**: title, status, category, component, version
 - **Issue summary**: description and problem statement
 - **Discussion**: comments with authors, dates, and key points
@@ -130,6 +130,10 @@ Extract from MR:
 ```bash
 do.php gitlab:mrinfo {{issue_number}}
 ```
+Stays on `do.php` — `drupalorg mr:list`/`mr:status` need the MR iid already known (they don't
+discover it from a bare D.o issue number the way `do.php` does via the issue's GitLab fork), and
+richer fields like `description`/`has_conflicts`/`blocking_discussions_resolved` aren't returned
+by `drupalorg`'s MR commands yet.
 
 Parse the JSON output to extract:
 - `web_url`: URL to the MR page
@@ -240,6 +244,17 @@ Or, without relying on the local checkout:
 ```bash
 GITLAB_HOST={{host}} glab ci status --repo {{project_path}} --branch={{source_branch}} --output json
 ```
+
+**Host mismatch:** `git.drupalcode.org` and `git.drupal.org` are the same GitLab instance under
+two hostnames. `glab` matches `GITLAB_HOST` literally against the configured remote's URL host —
+no DNS/alias awareness. If the checked-out repo's remotes use `git.drupal.org` (common when the
+remote was added by `do.php`/`drupalorg` tooling) but `{{host}}` from the issue URL is
+`git.drupalcode.org`, `glab` errors with "none of the git remotes ... correspond to the
+GITLAB_HOST". Fix: retry with the remote's actual host instead of `{{host}}`:
+```bash
+git remote get-url origin | sed -E 's#.*[@/]([^/:]+)[:/].*#\1#'
+```
+Use that value for `GITLAB_HOST` on retry.
 
 Extract:
 - Overall pipeline status (`success`/`failed`/`running`/etc.)

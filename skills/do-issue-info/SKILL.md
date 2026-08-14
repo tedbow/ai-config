@@ -76,27 +76,30 @@ gh api repos/{{owner}}/{{repo}}/pulls/{{pr_number}}/comments
 
 #### GitLab path
 
-For `git.drupalcode.org` hosts, prefer `do.php` — it accepts the issue URL directly and produces the same markdown format as the Drupal.org path:
+For `git.drupalcode.org` hosts, fetch issue metadata and comments in one call:
 ```bash
-do.php info {{issue_url}} --format=md --comments --mrs
+drupalorg issue:show {{issue_url}} --format=llm --with-comments
 ```
-For other hosts (e.g. `gitlab.com`), use `glab` as below.
+For other hosts (e.g. `gitlab.com`), use `glab` as below — `drupalorg` only covers Drupal.org's GitLab instance.
 
-Fetch issue metadata:
+Fetch issue metadata (other hosts only):
 ```bash
 glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}
 ```
 (If that returns 404, try `/projects/{{encoded_project_path}}/work_items/{{issue_iid}}`)
 
-Fetch comments/notes:
+Fetch comments/notes (other hosts only):
 ```bash
 glab api --hostname {{host}} "/projects/{{encoded_project_path}}/issues/{{issue_iid}}/notes?sort=asc&per_page=100"
 ```
 
-Find linked merge requests:
+Find linked merge requests (all GitLab hosts, including `git.drupalcode.org`):
 ```bash
 glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}/related_merge_requests
 ```
+Use this endpoint rather than `drupalorg mr:list` for MR discovery — `mr:list` resolves through a
+GitLab "issue fork" and silently falls back to listing unrelated project-wide MRs when no fork
+matches this issue, instead of erroring.
 
 **If there are errors fetching issue details:** stop immediately and report the error.
 
