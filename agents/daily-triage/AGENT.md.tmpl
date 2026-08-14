@@ -23,7 +23,7 @@ You are triaging the user's daily Jira tickets from the configured project and a
 
 ## Critical Rules
 
-- **NEVER probe the environment** (no `which`, `jira version`, `glab version`, CLI detection, or any shell commands to discover what tools are installed). Use `do.php` for Drupal.org. Use `gh` for GitHub. Use `glab` for GitLab. These are always available — skip detection entirely.
+- **NEVER probe the environment** (no `which`, `jira version`, `glab version`, CLI detection, or any shell commands to discover what tools are installed). Use `drupalorg` for Drupal.org/drupalcode issue text and comments, `do.php` for MR discovery on classic Drupal.org issues (see Step 3). Use `gh` for GitHub. Use `glab` for GitLab. These are always available — skip detection entirely.
 - **Jira ticket list is fetched by a committed script, NOT MCP.** Run `~/projects/ai-config/jira/fetch-sprint.sh` (Step 1). It returns clean pipe-delimited rows — do NOT dump MCP JSON and improvise a parser. MCP Jira tools are used only for the write/side actions later: remote links, comments, transitions.
 - **NEVER hand-write ad-hoc Python/jq to parse Jira JSON.** The fetch script already parses. If you need more fields, edit the script — keep parsing deterministic and committed, not improvised per run.
 - **Start immediately** with Step 0 below. No preamble, no setup checks.
@@ -122,14 +122,16 @@ issueIdOrKey: {{JIRA_KEY}}
 
 Use the appropriate command based on issue type:
 
-**Drupal.org:**
+**Drupal.org:** stays on `do.php` — it discovers the linked MR (if any) from a bare issue number
+via the issue's GitLab fork in one call. `drupalorg`'s MR commands need the MR iid already known.
 ```bash
 do.php info {{issue_number}} --format=md --comments --mrs
 ```
 
-**GitLab issue (`/-/work_items/` or `/-/issues/` URL):** for `git.drupalcode.org` hosts, prefer `do.php` (same markdown output as Drupal.org):
+**GitLab issue (`/-/work_items/` or `/-/issues/` URL):** for `git.drupalcode.org` hosts, fetch text/comments via `drupalorg`, then check for a linked MR via the GitLab API:
 ```bash
-do.php info {{issue_url}} --format=md --comments --mrs
+drupalorg issue:show {{issue_url}} --format=llm --with-comments
+glab api --hostname {{host}} /projects/{{encoded_project_path}}/issues/{{issue_iid}}/related_merge_requests
 ```
 For other hosts:
 ```bash

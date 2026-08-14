@@ -32,7 +32,12 @@ Re-run `./build.sh` after editing `.env` or any `.tmpl` file. Generated files ar
 
 To find your Cloud ID, use `mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources`.
 
-### 3. Install do.php
+### 3. Install do.php and drupalorg
 
-Some skills require `do.php` in your PATH.
-See https://github.com/tedbow/drupal-scripts
+Some skills require both CLIs in your PATH.
+
+- `drupalorg`: https://github.com/mglaman/drupalorg-cli — used for issue/comment fetching
+  (`drupalorg issue:show`) and MR pipeline status/logs (`drupalorg mr:status`, `drupalorg
+  mr:logs`) once you know an MR's iid.
+- `do.php`: https://github.com/tedbow/drupal-scripts — still used for MR discovery on classic
+  Drupal.org issues (`do.php info --mrs`, `do.php gitlab:mrinfo`, `do.php mr-checkout`).

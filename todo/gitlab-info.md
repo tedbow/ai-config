@@ -105,6 +105,30 @@ The right fix is the right tool, not a wider allow list.
   `.claude-mine`. Rules that appear to exist may not be loaded.
 - Pipelines are matched per segment. One unlisted segment prompts for the whole command.
 
+## Update 2026-08-14: drupalorg CLI
+
+A `drupalorg` CLI is now installed (`~/bin/drupalorg`) and wired into `do-issue-info`,
+`review-issue`, `daily-triage`, and `monitor-pipeline` — see those skills for the actual
+call sites. Net effect on the omissions/TODOs below:
+
+- **MR description body / diffs / commits** (line 27-28): filled by `drupalorg mr:diff`
+  and `drupalorg mr:files`.
+- **No write commands** (line 129 TODO): partially filled — `drupalorg issue:fork`,
+  `issue:label`/`unlabel`/`relabel`, `issue:assign`/`unassign`/`reassign` post GitLab
+  work-item bot slash-commands. Still no generic `issue:create`/`issue:comment`, so the
+  `glab api` recipes in Rule 2 are still the way to create issues/comments.
+- **New gotcha found during migration**: `drupalorg mr:list`/`mr:status`/`mr:logs` are all
+  scoped to an already-known MR (`project-path!iid`) or GitLab "issue fork" — they don't
+  discover "the MR for issue N" the way `do.php info --mrs` does. Worse, `mr:list` on an
+  nid with no matching fork **silently falls back to listing unrelated project-wide MRs**
+  instead of erroring — confirmed against drupal.org issue #3591850, which returned MRs
+  about unrelated topics. For MR discovery on GitLab-hosted issues, use
+  `glab api .../issues/{iid}/related_merge_requests` instead (already what
+  `do-issue-info`/`review-issue` do for non-drupalcode hosts, now extended to
+  drupalcode too). For classic Drupal.org issues there's no equivalent — `do.php info
+  --mrs` / `do.php gitlab:mrinfo` stay in place for that case, and `do.php mr-checkout`
+  is unmigrated entirely (see main migration plan).
+
 ## TODO — changes still needed
 
 - [ ] **Always-on tool rule.** The `do.php` guidance currently lives only inside
