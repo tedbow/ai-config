@@ -220,7 +220,7 @@ Display a summary table, then a launcher block:
 
 **Links section rules:**
 - One line per ticket. Always include the Jira URL (`https://__JIRA_DOMAIN__/browse/{{KEY}}`).
-- Include the full **WORK_LINK** URL from `fetch-sprint.sh` (Drupal.org issue / GitLab work_item / GitHub PR).
+- Include the full **WORK_LINK** URL from `fetch-sprint.sh` (Drupal.org issue / GitLab work_item / GitHub PR) **verbatim** — never rewrite a `git.drupalcode.org/.../-/work_items/N` URL into `https://drupal.org/i/N` form, or vice versa. Only construct a `drupal.org/i/N` URL when all you have is a bare number for a project on the classic Drupal.org queue.
 - If a ticket has **multiple** related MRs/PRs (e.g. from the `get_link` fallback — SCP-640 had two PRs), list **all** of them, separated by ` · `. Do not collapse to one.
 - Use full clickable URLs, not short `org/repo#NNN` labels — the table column can stay short, but this section must have real URLs.
 
@@ -255,6 +255,7 @@ Write `~/triage/YYYY-MM-DD/triage.md` (use actual date from system context):
 [one line per ticket — Jira URL + all related issue/MR/PR URLs, ` · ` separated:]
 - **SCP-XXX** — Jira https://__JIRA_DOMAIN__/browse/SCP-XXX · Issue https://drupal.org/i/NNNNNNN
 - **SCP-YYY** — Jira https://__JIRA_DOMAIN__/browse/SCP-YYY · PR https://github.com/org/repo/pull/NNN · PR https://github.com/org/repo/pull/MMM
+- **SCP-ZZZ** — Jira https://__JIRA_DOMAIN__/browse/SCP-ZZZ · MR https://git.drupalcode.org/project/canvas/-/work_items/NNNNNNN
 
 ## Launch Workers
 [one line per assigned ticket:]

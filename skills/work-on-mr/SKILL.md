@@ -26,6 +26,8 @@ You are helping work on a Drupal.org issue, GitLab issue, or GitHub PR by checki
 
 **Drupal.org issue** — plain number, `https://www.drupal.org/project/<project>/issues/<number>`, or `https://drupal.org/i/<number>` (`www.` optional)
 
+A plain number is only a Drupal.org issue by default: if context shows the project's issue queue has migrated to GitLab work items (e.g. canvas — current repo's git remote, or the issue turns out to be a GitLab-native work item), treat it as the GitLab issue type instead, with `https://git.drupalcode.org/<project_path>/-/work_items/<number>` and `project#nid` refs for `drupalorg`. Never rewrite a work_items URL into `drupal.org/i/` form, or vice versa.
+
 Get full issue details using the "Get Issue Information" skill (do-issue-info), passing the issue reference.
 
 Wait for the full issue information to be retrieved before proceeding.

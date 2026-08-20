@@ -50,7 +50,7 @@ Extract the issue number.
 
 **If no input provided:**
 - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-- Extract issue number (digits at start before first hyphen) → treat as Drupal.org issue
+- Extract issue number (digits at start before first hyphen) → treat as Drupal.org issue, **unless** the repo belongs to a project whose issue queue has migrated to GitLab work items (e.g. canvas — check the git remote host/project). In that case treat it as a GitLab work item: use `https://git.drupalcode.org/<project_path>/-/work_items/<number>` and `project#nid` refs for `drupalorg`.
 - If no match, ask user for issue number or URL
 
 ### 1. Get Issue Number/URL and Flags
@@ -239,8 +239,9 @@ For GitHub PRs, use the full PR URL (e.g., `https://github.com/owner/repo/pull/1
 
 ## Tips
 
-- For Drupal.org issues, provide URLs in format: `https://drupal.org/i/{{issue_number}}`
-- For GitLab issues, use the full `/work_items/` URL
+- Preserve the source URL verbatim — never rewrite a `git.drupalcode.org/.../-/work_items/N` (or `/-/issues/N`) URL into `drupal.org/i/N` form, or vice versa. When fetched data provides a canonical `web_url`, output that.
+- For classic Drupal.org issues, provide URLs in format: `https://drupal.org/i/{{issue_number}}`
+- For GitLab issues/work items, use the full `/work_items/` URL
 - For GitHub PRs, use the full `https://github.com/owner/repo/pull/N` URL
 - Summarize comments focusing on key technical points and decisions
 - Identify unresolved questions that still need attention

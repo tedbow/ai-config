@@ -39,7 +39,7 @@ Extract: `host`, `project_path` (e.g., `project/canvas`), `issue_iid`.
 
 **If nothing provided:**
 - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-- Extract issue number (digits before first hyphen) → treat as Drupal.org issue
+- Extract issue number (digits before first hyphen) → treat as Drupal.org issue, **unless** the repo belongs to a project whose issue queue has migrated to GitLab work items (e.g. canvas — check the git remote host/project). In that case treat it as a GitLab work item: use `https://git.drupalcode.org/<project_path>/-/work_items/<number>` and `project#nid` refs for `drupalorg`.
 - If no match, ask user for issue number or URL
 
 ### 2. Fetch Issue Data
