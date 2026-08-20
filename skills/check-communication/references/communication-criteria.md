@@ -28,7 +28,7 @@ Apply these checks to any ticket, PR, or issue. Each check has a **pass conditio
 
 **"Fixed elsewhere" traceable**
 - Pass: If a symptom is described as "resolved elsewhere" or "fixed by someone else," there is a pointer to the actual artifact: a commit SHA, a PR/MR URL, a config change with a description.
-- Common failure: "Ankitha fixed this, as noted by Vipin [link to Vipin's comment]." Vipin's comment doesn't name Ankitha or describe a fix.
+- Common failure: "Sarah fixed this, as noted by Mike [link to Mike's comment]." Mike's comment doesn't name Sarah or describe a fix.
 
 ---
 
