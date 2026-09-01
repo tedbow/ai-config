@@ -1,10 +1,9 @@
 #!/bin/bash
 #
-# Fetch recent Jira activity for the current user.
+# Fetch recent Jira activity for the current user, grouped by ticket.
 # Usage: ./fetch-activity.sh [timeframe]
 #   timeframe: 24h (default), 4h, 2h, 1d, 2d
 #
-# Outputs markdown sections, omitting empty ones.
 # Requires: JIRA_API_TOKEN in environment, curl, jq.
 
 set -euo pipefail
@@ -13,20 +12,16 @@ JIRA_DOMAIN="__JIRA_DOMAIN__"
 JIRA_EMAIL="__JIRA_EMAIL__"
 TIMEFRAME="${1:-24h}"
 
-# Parse timeframe → JQL relative date string
 if [[ "$TIMEFRAME" =~ ^([0-9]+)h$ ]]; then
-  JQL_TIME="-${BASH_REMATCH[1]}h"
-  LABEL="${BASH_REMATCH[1]}h"
+  JQL_TIME="-${BASH_REMATCH[1]}h"; LABEL="${BASH_REMATCH[1]}h"
 elif [[ "$TIMEFRAME" =~ ^([0-9]+)d$ ]]; then
-  JQL_TIME="-${BASH_REMATCH[1]}d"
-  LABEL="${BASH_REMATCH[1]}d"
+  JQL_TIME="-${BASH_REMATCH[1]}d"; LABEL="${BASH_REMATCH[1]}d"
 else
   JQL_TIME="-24h"; LABEL="24h"
 fi
 
 if [ -z "${JIRA_API_TOKEN:-}" ]; then
-  echo "ERROR: JIRA_API_TOKEN not set" >&2
-  exit 1
+  echo "ERROR: JIRA_API_TOKEN not set" >&2; exit 1
 fi
 
 AUTH=$(printf '%s' "${JIRA_EMAIL}:${JIRA_API_TOKEN}" | base64)
@@ -49,22 +44,38 @@ has_jql_error() {
     >/dev/null 2>&1
 }
 
-changelog() {
-  jira_get "https://${JIRA_DOMAIN}/rest/api/3/issue/${1}/changelog?maxResults=100" 2>/dev/null \
-    || echo '{"values":[]}'
-}
-
-# ── current user ─────────────────────────────────────────────────────────────
 MY_ID=$(jira_get "https://${JIRA_DOMAIN}/rest/api/3/myself" | jq -r '.accountId')
 if [ -z "$MY_ID" ] || [ "$MY_ID" = "null" ]; then
-  echo "ERROR: could not get current user account ID — check JIRA_API_TOKEN" >&2
-  exit 1
+  echo "ERROR: could not get current user account ID — check JIRA_API_TOKEN" >&2; exit 1
 fi
 
-echo "## Jira Activity — Last ${LABEL}"
-echo ""
+# ── Temp workspace (bash 3.2 compatible; no associative arrays) ───────────────
 
-# Prints one "TIME | FROM → TO" line per matching entry, oldest→newest.
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+touch "$WORK/order"
+
+add_ticket() {
+  local key="$1" summary="$2" status_name="${3:-}" updated="${4:-}"
+  local dir="$WORK/$key"
+  if [ ! -d "$dir" ]; then
+    mkdir "$dir"
+    echo "$key" >> "$WORK/order"
+    printf '%s' "$summary" > "$dir/summary"
+  fi
+  if [ -n "$status_name" ] && [ ! -f "$dir/status"  ]; then printf '%s' "$status_name" > "$dir/status";  fi
+  if [ -n "$updated"     ] && [ ! -f "$dir/updated" ]; then printf '%s' "$updated"     > "$dir/updated"; fi
+}
+
+get_changelog() {
+  local key="$1" dir="$WORK/$key"
+  if [ ! -f "$dir/changelog" ]; then
+    jira_get "https://${JIRA_DOMAIN}/rest/api/3/issue/${key}/changelog?maxResults=100" \
+      2>/dev/null > "$dir/changelog" || echo '{"values":[]}' > "$dir/changelog"
+  fi
+  cat "$dir/changelog"
+}
+
 my_field_changes() {
   local cl="$1" field="$2"
   echo "$cl" | jq -r --arg me "$MY_ID" --arg f "$field" '
@@ -78,100 +89,115 @@ my_field_changes() {
   ' 2>/dev/null || true
 }
 
-# ── 1. Assignee changes I made ───────────────────────────────────────────────
+# ── Collect tickets ───────────────────────────────────────────────────────────
+
+# Query 1: assignee changes I made
 RESP=$(search "assignee changed by currentUser() AFTER \"${JQL_TIME}\" ORDER BY updated DESC" \
               2>/dev/null || echo '{"issues":[]}')
+has_jql_error "$RESP" && RESP=$(search \
+  "assignee was currentUser() AND assignee != currentUser() AND updated >= \"${JQL_TIME}\" ORDER BY updated DESC" \
+  2>/dev/null || echo '{"issues":[]}')
 
-# Fall back to 'was' approach if 'changed by' isn't supported on this instance
-if has_jql_error "$RESP"; then
-  RESP=$(search \
-    "assignee was currentUser() AND assignee != currentUser() AND updated >= \"${JQL_TIME}\" ORDER BY updated DESC" \
-    2>/dev/null || echo '{"issues":[]}')
-fi
-
-ROWS=""
-while IFS= read -r key; do
+while IFS=$'\t' read -r key summary status_name updated; do
   [ -z "$key" ] && continue
-  SUMMARY=$(echo "$RESP" | jq -r --arg k "$key" \
-    '.issues[] | select(.key==$k) | .fields.summary | .[0:55] | gsub("[|\n]";" ")')
-  URL="https://${JIRA_DOMAIN}/browse/${key}"
-  CL=$(changelog "$key")
-  while IFS= read -r row; do
-    [ -z "$row" ] && continue
-    ROWS="${ROWS}| [${key}](${URL}) | ${SUMMARY} | ${row} |"$'\n'
-  done < <(my_field_changes "$CL" "assignee")
-done < <(echo "$RESP" | jq -r '.issues[].key' 2>/dev/null || true)
+  add_ticket "$key" "$summary" "$status_name" "$updated"
+done < <(echo "$RESP" | jq -r \
+  '.issues[] | [.key, (.fields.summary | .[0:55] | gsub("[|\n]";" ")), .fields.status.name, .fields.updated[0:16]] | @tsv' \
+  2>/dev/null || true)
 
-if [ -n "$ROWS" ]; then
-  echo "### Assignee Changes I Made"
-  echo "| Ticket | Summary | Time | Change |"
-  echo "| ------ | ------- | ---- | ------ |"
-  printf '%s' "$ROWS"
-  echo ""
-fi
-
-# ── 2. Status changes I made (column moves) ───────────────────────────────────
+# Query 2: status changes I made
 RESP=$(search "status changed by currentUser() AFTER \"${JQL_TIME}\" ORDER BY updated DESC" \
               2>/dev/null || echo '{"issues":[]}')
-has_jql_error "$RESP" && RESP='{"issues":[]}'  # no reliable fallback for status
+has_jql_error "$RESP" && RESP='{"issues":[]}'
 
-ROWS=""
-while IFS= read -r key; do
+while IFS=$'\t' read -r key summary status_name updated; do
   [ -z "$key" ] && continue
-  SUMMARY=$(echo "$RESP" | jq -r --arg k "$key" \
-    '.issues[] | select(.key==$k) | .fields.summary | .[0:55] | gsub("[|\n]";" ")')
-  URL="https://${JIRA_DOMAIN}/browse/${key}"
-  CL=$(changelog "$key")
-  while IFS= read -r row; do
-    [ -z "$row" ] && continue
-    ROWS="${ROWS}| [${key}](${URL}) | ${SUMMARY} | ${row} |"$'\n'
-  done < <(my_field_changes "$CL" "status")
-done < <(echo "$RESP" | jq -r '.issues[].key' 2>/dev/null || true)
+  add_ticket "$key" "$summary" "$status_name" "$updated"
+done < <(echo "$RESP" | jq -r \
+  '.issues[] | [.key, (.fields.summary | .[0:55] | gsub("[|\n]";" ")), .fields.status.name, .fields.updated[0:16]] | @tsv' \
+  2>/dev/null || true)
 
-if [ -n "$ROWS" ]; then
-  echo "### Status Changes I Made"
-  echo "| Ticket | Summary | Time | Change |"
-  echo "| ------ | ------- | ---- | ------ |"
-  printf '%s' "$ROWS"
-  echo ""
-fi
-
-# ── 3. Newly assigned to me ───────────────────────────────────────────────────
+# Query 3: assigned to me
 RESP=$(search "assignee changed to currentUser() AFTER \"${JQL_TIME}\" ORDER BY updated DESC" \
               "summary,status,updated" 2>/dev/null || echo '{"issues":[]}')
+has_jql_error "$RESP" && RESP=$(search \
+  "assignee = currentUser() AND updated >= \"${JQL_TIME}\" ORDER BY updated DESC" \
+  "summary,status,updated" 2>/dev/null || echo '{"issues":[]}')
 
-# Fall back to currently-assigned + recently updated
-if has_jql_error "$RESP"; then
-  RESP=$(search "assignee = currentUser() AND updated >= \"${JQL_TIME}\" ORDER BY updated DESC" \
-                "summary,status,updated" 2>/dev/null || echo '{"issues":[]}')
-fi
+while IFS=$'\t' read -r key summary status_name updated; do
+  [ -z "$key" ] && continue
+  add_ticket "$key" "$summary" "$status_name" "$updated"
+  touch "$WORK/$key/assigned_to_me"
+done < <(echo "$RESP" | jq -r \
+  '.issues[] | [.key, (.fields.summary | .[0:55] | gsub("[|\n]";" ")), .fields.status.name, .fields.updated[0:16]] | @tsv' \
+  2>/dev/null || true)
 
-ROWS=$(echo "$RESP" | jq -r --arg d "$JIRA_DOMAIN" '
-  .issues[] |
-  "| [\(.key)](https://\($d)/browse/\(.key)) | \(.fields.summary | .[0:55] | gsub("[|\n]";" ")) | \(.fields.status.name) | \(.fields.updated[0:16]) |"
-' 2>/dev/null || true)
-
-if [ -n "$ROWS" ]; then
-  echo "### Assigned to Me"
-  echo "| Ticket | Summary | Status | Updated |"
-  echo "| ------ | ------- | ------ | ------- |"
-  echo "$ROWS"
-  echo ""
-fi
-
-# ── 4. Issues I created ───────────────────────────────────────────────────────
+# Query 4: issues I created
 RESP=$(search "reporter = currentUser() AND created >= \"${JQL_TIME}\" ORDER BY created DESC" \
               "summary,status,created" 2>/dev/null || echo '{"issues":[]}')
 
-ROWS=$(echo "$RESP" | jq -r --arg d "$JIRA_DOMAIN" '
-  .issues[] |
-  "| [\(.key)](https://\($d)/browse/\(.key)) | \(.fields.summary | .[0:55] | gsub("[|\n]";" ")) | \(.fields.status.name) | \(.fields.created[0:16]) |"
-' 2>/dev/null || true)
+while IFS=$'\t' read -r key summary status_name created; do
+  [ -z "$key" ] && continue
+  add_ticket "$key" "$summary" "$status_name" ""
+  touch "$WORK/$key/created_by_me"
+  printf '%s' "$created" > "$WORK/$key/created"
+done < <(echo "$RESP" | jq -r \
+  '.issues[] | [.key, (.fields.summary | .[0:55] | gsub("[|\n]";" ")), .fields.status.name, .fields.created[0:16]] | @tsv' \
+  2>/dev/null || true)
 
-if [ -n "$ROWS" ]; then
-  echo "### Issues I Created"
-  echo "| Ticket | Summary | Status | Created |"
-  echo "| ------ | ------- | ------ | ------- |"
-  echo "$ROWS"
-  echo ""
+# ── Output ────────────────────────────────────────────────────────────────────
+
+echo "## Jira Activity — Last ${LABEL}"
+echo ""
+
+if [ ! -s "$WORK/order" ]; then
+  echo "_No activity found._"
+  exit 0
 fi
+
+while IFS= read -r key; do
+  [ -z "$key" ] && continue
+  dir="$WORK/$key"
+  URL="https://${JIRA_DOMAIN}/browse/${key}"
+  summary=$(cat "$dir/summary")
+  echo "### [${key}](${URL}) — ${summary}"
+  echo ""
+
+  # Merge assignee + status changelog events, sort chronologically
+  CL=$(get_changelog "$key")
+  EVENTS=""
+  while IFS= read -r row; do
+    [ -z "$row" ] && continue
+    EVENTS="${EVENTS}${row} | Assignee"$'\n'
+  done < <(my_field_changes "$CL" "assignee")
+  while IFS= read -r row; do
+    [ -z "$row" ] && continue
+    EVENTS="${EVENTS}${row} | Status"$'\n'
+  done < <(my_field_changes "$CL" "status")
+
+  if [ -n "$EVENTS" ]; then
+    echo "| Time | Change | Type |"
+    echo "| ---- | ------ | ---- |"
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      echo "| ${line} |"
+    done < <(printf '%s' "$EVENTS" | sort)
+    echo ""
+  fi
+
+  # Metadata line for assignment/creation state
+  META=""
+  if [ -f "$dir/assigned_to_me" ]; then META="Assigned to me"; fi
+  if [ -f "$dir/created_by_me"  ]; then META="${META}${META:+ · }Created by me"; fi
+  if [ -n "$META" ]; then
+    STATUS_LABEL=$(cat "$dir/status"  2>/dev/null || true)
+    UPDATED_LABEL=$(cat "$dir/updated" 2>/dev/null || true)
+    CREATED_LABEL=$(cat "$dir/created" 2>/dev/null || true)
+    if [ -n "$STATUS_LABEL"  ]; then META="${META} · ${STATUS_LABEL}"; fi
+    if [ -n "$UPDATED_LABEL" ]; then META="${META} · Updated: ${UPDATED_LABEL}"; fi
+    if [ -n "$CREATED_LABEL" ]; then META="${META} · Created: ${CREATED_LABEL}"; fi
+    echo "_${META}_"
+    echo ""
+  fi
+
+done < "$WORK/order"
