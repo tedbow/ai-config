@@ -22,6 +22,7 @@ cp .env.example .env
 - `agents/daily-triage/AGENT.md` ← `AGENT.md.tmpl`
 - `skills/fetch-scp-tickets/SKILL.md` ← `SKILL.md.tmpl`
 - `jira/fetch-sprint.sh` ← `fetch-sprint.sh.tmpl`
+- `jira/fetch-activity.sh` ← `fetch-activity.sh.tmpl`
 
 These are gitignored. The `.tmpl` files are the source of truth.
 

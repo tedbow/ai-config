@@ -11,6 +11,7 @@ jira/*.json
 agents/daily-triage/AGENT.md
 skills/fetch-scp-tickets/SKILL.md
 jira/fetch-sprint.sh
+jira/fetch-activity.sh
 
 others-skills/plugins/borrowed/skills/*
 !others-skills/plugins/borrowed/skills/.gitkeep
