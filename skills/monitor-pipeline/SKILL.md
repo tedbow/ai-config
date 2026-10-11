@@ -52,7 +52,7 @@ prev=""
 while true; do
   out=$(drupalorg mr:status "PROJECT_PATH!MR_IID" --format=text 2>&1 || true)
   if [ "$out" != "$prev" ]; then echo "$out"; prev="$out"; fi
-  if printf '%s' "$out" | grep -qE '\b(success|failed|canceled|skipped)\b'; then
+  if printf '%s' "$out" | grep -qE '\b(passed|success|failed|canceled|skipped)\b'; then
     break
   fi
   sleep 60
