@@ -47,6 +47,17 @@ After receiving the issue information, check if there are any open merge request
 
 ### Step 3: Checkout the Merge Request / Pull Request
 
+**No local site yet?** For Drupal.org / git.drupalcode.org issues, first check with the
+`find-dev-folder` skill. If nothing exists, create one in seconds by APFS-cloning a template:
+```bash
+do.php site:clone {{site_dir}} --issue-url={{issue_url}}
+```
+(`{{site_dir}}` like `3592100-pages-access`; it becomes `http://{{site_dir}}.test/`. The command
+checks out the MR branch itself, so skip the GitLab checkout below and `cd` into the new site.
+If it reports no template for the target branch, accept its offer to build one — that is the
+only slow path, once per branch.)
+
+
 #### GitHub path
 
 ```bash

@@ -19,6 +19,10 @@ which term(s) to pass it: for a Jira ticket, a folder may be named only with
 its *linked* Drupal.org/GitLab issue number, not the Jira key itself, so
 both need to be tried.
 
+Sites built by `do.php site:setup` or `do.php site:clone` also carry a
+`.site-meta.json` holding the issue URL; the script matches terms against that
+file too, so a folder named only by slug still resolves to its issue.
+
 ## Workflow
 
 ### 1. Identify the search term(s)

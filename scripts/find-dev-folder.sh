@@ -42,8 +42,12 @@ shopt -s nocasematch
 MATCHES=()
 for dir in "$SITES_DIR"/*/; do
   name=$(basename "$dir")
+  # Sites built by do.php site:setup/site:clone carry a .site-meta.json with
+  # the issue URL, so a folder named only by slug still matches its issue.
+  meta=""
+  [ -f "$dir/.site-meta.json" ] && meta=$(cat "$dir/.site-meta.json")
   for term in "$@"; do
-    if [[ "$name" =~ (^|[^0-9A-Za-z])${term}([^0-9A-Za-z]|$) ]]; then
+    if [[ "$name" =~ (^|[^0-9A-Za-z])${term}([^0-9A-Za-z]|$) ]] || [[ -n "$meta" && "$meta" =~ (^|[^0-9A-Za-z])${term}([^0-9A-Za-z]|$) ]]; then
       MATCHES+=("${dir%/}")
       break
     fi
