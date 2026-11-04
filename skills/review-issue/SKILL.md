@@ -1,7 +1,7 @@
 ---
 name: Issue Review
 description: This skill should be used when the user asks to "review a drupal.org issue", "review an issue", "review a gitlab issue", "review a github pr", "check issue status", "analyze a merge request", or wants to examine a Drupal.org issue, GitLab issue, or GitHub PR's code changes, discussion, and CI status.
-version: 2.2.0
+version: 2.3.0
 ---
 
 # Issue Review Skill
@@ -270,6 +270,10 @@ Extract:
 Same `glab ci status` approach as GitLab path above.
 
 ### 7. Generate Review Summary
+
+**Output format:** if the user asked for self-review XML (or named a `.xml` output file), follow
+the `self-review-format` skill instead of printing the markdown below, and skip step 8 unless the
+user also asked to post. The findings stay the same; only the container changes.
 
 Display a comprehensive review summary in the terminal:
 
