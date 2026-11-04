@@ -186,5 +186,7 @@ self-review <diff-args> --resume-from <output-path>
   upstream of the rules above; when they disagree, the upstream wins and this file needs updating.
 - `self-review-apply`: executes the comments in a review file. Owns the XSD this skill validates
   against.
+- `self-review-respond` (ai-config): answers the human's replies in an existing review file as
+  `<reply>` turns, with no new findings and no code changes. Follows step 3 above.
 - `self-review-guide`: writes the `review.guide.xml` walkthrough sidecar. Independent of this
   skill; run it only when asked.
