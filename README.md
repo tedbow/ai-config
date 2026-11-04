@@ -39,5 +39,17 @@ Some skills require both CLIs in your PATH.
 - `drupalorg`: https://github.com/mglaman/drupalorg-cli — used for issue/comment fetching
   (`drupalorg issue:show`) and MR pipeline status/logs (`drupalorg mr:status`, `drupalorg
   mr:logs`) once you know an MR's iid.
-- `do.php`:(todo Remove this dependency in favor of drupalorg for everything) https://github.com/tedbow/drupal-scripts — still used for MR discovery on classic
-  Drupal.org issues (`do.php info --mrs`, `do.php gitlab:mrinfo`, `do.php mr-checkout`).
+- `do.php`:(todo Remove this dependency in favor of drupalorg for everything) https://github.com/tedbow/drupal-scripts — used for `do.php site:template`,
+  `site:clone`, `site:gc`, `gitlab:mrinfo` and `mr-checkout`. NOT used for issue
+  detail: `do.php info` currently aborts on classic Drupal.org issues
+  (`IssueInfo.php:68`), so `scripts/fetch-issue-detail.sh` reads those through
+  `drupalorg issue:show` and discovers their MRs with a GitLab project search.
+
+### 4. Build a day of triage data
+
+```bash
+scripts/triage-fetch.sh --open-only --days 3   # open source only, no Jira
+scripts/triage-fetch.sh                        # full, needs $JIRA_API_TOKEN
+```
+
+See the "Triage data layer" section of `CLAUDE.md` for what it writes.
