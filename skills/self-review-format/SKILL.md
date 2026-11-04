@@ -1,7 +1,7 @@
 ---
 name: self-review-format
 description: This skill should be used when the user asks to "output in self-review format", "write the review as review.xml", "self-review XML", "make this reviewable in self-review", or when another review skill (review-issue, or any future review skill) is told to emit its findings as a file the self-review desktop app can open. Format only - it does not decide what to review or what to say. Pair it with the skill that produces the findings.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Self-review XML output format
@@ -90,6 +90,12 @@ If the output path already exists, read it first. It may hold a human's comments
 - `git-diff-args`: the string from step 2, verbatim.
 - `repository`: `git rev-parse --show-toplevel`.
 
+Leave the schema's `remote-url`, `remote-base-sha`, `remote-head-sha`, `remote-forge` and
+`remote-id` attributes unset. They describe a review the app fetched from a forge itself and the
+app treats that shape as exclusive with `git-diff-args`/`repository`. A user who opens the file
+with `self-review <diff-args> --resume-from` is in the local shape. Put the MR URL in a comment
+body or in the hand-off message instead.
+
 **`<file>`** - one per file in `git diff --name-status`, in that order, including files with no
 comments.
 - `path`: repo-relative. For renames and copies, the **new** path.
@@ -112,6 +118,11 @@ comments.
   speculative. Lowering confidence is the signal working, not a weaker comment.
 - Children in this order: `<body>`, `<category>`, optional `<suggestion>`, optional
   `<attachment>`s, then `<reply>`s.
+- `<body>` is Markdown. Link every reference the calling skill has a URL for, so the reader
+  can jump from the app: an MR thread as `[isholgueras asked which is intended](<mr-url>#note_<id>)`,
+  a work item or issue by its full URL, a commit as `<project-url>/-/commit/<full 40-char sha>`
+  (GitLab ignores short hashes in some link forms), a pipeline or job by its `web_url`. Keep the
+  link text in the thread's own words; a bare note id or short hash tells the reader nothing.
 - `<category>`: one of the names in `.self-review.yaml` `categories` if present, else
   `question`, `bug`, `security`, `style`, `task`, `nit`.
 - `<suggestion>`: `<original-code>` must be the exact current text at the anchored lines,
@@ -137,7 +148,24 @@ Then check anchors mechanically, not by eye: for each comment with a `<suggestio
 `original-code` is found at the stated lines. A suggestion that does not match is worse than no
 suggestion, because the apply skill will refuse it.
 
-## 6. Hand-off
+## 6. Guide sidecar, only on request
+
+The app can also show a walkthrough: file groups in reading order with an overview. That is a
+separate document, `urn:self-review-guide:v1`, written by the `self-review-guide` skill. Do not
+write it by default and do not restate its rules here; run that skill with the same diff args when
+the user asks for a guide or walkthrough.
+
+Two things the guide skill cannot know on its own:
+
+- **Where the app looks.** It discovers `<configured-output-basename>.guide.xml` next to the
+  configured output file only. No CLI flag, and `--resume-from` does not change it. A guide
+  for `agent-review.xml` is found only if `.self-review.yaml` sets `output-file` to that name.
+  Otherwise name it `review.guide.xml` and warn that it replaces any guide already there.
+- **What the calling skill knows.** Pass the issue summary, MR description and CI state into the
+  guide run so the `<overview>` can say what the work item asked for and where the MR stands.
+  From `git diff` alone the guide can only describe the files.
+
+## 7. Hand-off
 
 Print, in this order:
 - Output path, file count, comment count by category and by severity.
