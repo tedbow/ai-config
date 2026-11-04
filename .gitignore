@@ -15,3 +15,6 @@ jira/fetch-activity.sh
 
 others-skills/plugins/borrowed/skills/*
 !others-skills/plugins/borrowed/skills/.gitkeep
+
+# Machine-specific: links skills/ and agents/ into local Claude config dirs
+link-skills.sh
