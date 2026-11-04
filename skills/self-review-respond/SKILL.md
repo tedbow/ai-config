@@ -1,7 +1,7 @@
 ---
 name: self-review-respond
-description: This skill should be used when the user asks to "answer my review replies", "respond to my comments in review.xml", "address my points in the review", "reply to the threads", or has replied in the self-review app to an agent's comments and wants each reply answered as a thread turn in the same file. Answers only - it changes no code and raises no new findings. For acting on a curated review use self-review-apply; for a fresh review use review-issue or self-review-critique.
-version: 1.0.0
+description: This skill should be used when the user asks to "answer my review replies", "respond to my comments in review.xml", "address my points in the review", "reply to the threads", or has written comments or replies in the self-review app and wants each one answered as a thread turn in the same file. Answers only - it changes no code and raises no new findings. For acting on a curated review use self-review-apply; for a fresh review use review-issue or self-review-critique.
+version: 1.1.0
 args:
   - name: review-file
     description: Path to the review XML. Defaults to review.xml in the repo root, or the output-file in .self-review.yaml.
@@ -10,9 +10,10 @@ args:
 
 # Answer the human's replies in a self-review file
 
-The user reviewed an agent's comments in the self-review app and replied to some of them. Each
-reply is a question, a correction, or a decision. Answer every one, in the file, as a `<reply>`,
-so the next time the app opens the thread reads as a conversation.
+The user worked through a diff in the self-review app and left comments of their own, replies to
+an agent's comments, or both. Nothing in the app posts to a forge, so every human turn in the
+file is addressed to the agent: a question, a correction, a note, or a decision. Answer every one,
+in the file, as a `<reply>`, so the next time the app opens the thread reads as a conversation.
 
 This skill writes replies and nothing else. No code changes, no new root comments, no edits to
 existing comment text. If an answer needs code to move, the reply says what the change would be
@@ -35,11 +36,12 @@ Walk every `<comment>`. A reply with no `author` attribute is the human's. Class
 | --- | --- |
 | A human reply | Answer it. |
 | The agent's own comment or reply, no human reply after it | Skip. Nothing was asked. |
+| A human root comment (no `author`), no replies | Answer it. The human wrote it in the app with nobody else to read it, so it is a question or note for you. |
 | A human reply you already answered on a previous run | Skip. Document order is conversation order; if an authored reply follows the human's last one, that thread is done. |
 
-A root comment written by the human (no `author`, no `severity`) with no replies is a review
-comment for the author of the code, not a question to you. Skip it unless the user says to
-treat those as questions too.
+A human root comment often has no severity or confidence and may have an empty body with only
+a `<suggestion>`. Answer a suggestion-only comment by checking whether its `original-code` still
+matches the tree and whether the proposed text is right; say so in one line.
 
 List the threads you will answer before writing anything: file, lines, first words of the human
 reply. That is the dry run the user can stop.
