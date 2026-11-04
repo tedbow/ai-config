@@ -91,7 +91,7 @@ If the output path already exists, read it first. It may hold a human's comments
 - `repository`: `git rev-parse --show-toplevel`.
 
 Leave the schema's `remote-url`, `remote-base-sha`, `remote-head-sha`, `remote-forge` and
-`remote-id` attributes unset. They describe a review the app fetched from a forge itself and the
+`remote-id` attributes unset. They describe a review the app fetched from GitLab or GitHub itself and the
 app treats that shape as exclusive with `git-diff-args`/`repository`. A user who opens the file
 with `self-review <diff-args> --resume-from` is in the local shape. Put the MR URL in a comment
 body or in the hand-off message instead.

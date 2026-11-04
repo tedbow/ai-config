@@ -11,7 +11,7 @@ args:
 # Answer the human's replies in a self-review file
 
 The user worked through a diff in the self-review app and left comments of their own, replies to
-an agent's comments, or both. Nothing in the app posts to a forge, so every human turn in the
+an agent's comments, or both. Nothing in the app posts to GitLab or GitHub, so every human turn in the
 file is addressed to the agent: a question, a correction, a note, or a decision. Answer every one,
 in the file, as a `<reply>`, so the next time the app opens the thread reads as a conversation.
 
